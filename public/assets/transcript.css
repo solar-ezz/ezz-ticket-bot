@@ -333,12 +333,18 @@ hr {
     border-radius: 50px;
     padding: 2px 8px;
     background: rgba(255,255,255,0.05);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--border);
+    font-weight: 700;
 }
 
 .copy-id-pill {
     cursor: pointer;
-    border-color: var(--accent);
+    border: 1px solid var(--accent);
     color: var(--accent);
+    background: transparent;
 }
 
 .copy-id-pill:hover {
@@ -348,6 +354,10 @@ hr {
 .copy-id-pill.copied {
     background: var(--accent);
     color: #fff;
+}
+
+.role-label {
+    background: rgba(255,255,255,0.06);
 }
 
 .chat-msg .body {

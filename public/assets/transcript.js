@@ -35,12 +35,17 @@
 	}
 
 	document.querySelectorAll('.copy-id-pill').forEach(btn => {
-		btn.addEventListener('click', async () => {
+		btn.addEventListener('click', async e => {
 			const id = btn.dataset.userId;
 			if (!id || !navigator.clipboard) return;
-			await navigator.clipboard.writeText(id);
-			btn.classList.add('copied');
-			setTimeout(() => btn.classList.remove('copied'), 1200);
+			try {
+				await navigator.clipboard.writeText(id);
+				btn.classList.add('copied');
+				setTimeout(() => btn.classList.remove('copied'), 1200);
+			} catch (err) {
+				console.error('copy failed', err);
+			}
+			e.stopPropagation();
 		});
 	});
 })();

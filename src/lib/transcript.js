@@ -51,6 +51,12 @@ const isVideoUrl = url => {
 	return /\.(mp4|webm|mov|m4v|gifv)$/i.test(clean);
 };
 
+const mediaKey = url => {
+	if (!url) return '';
+	const clean = url.split(/[?#]/)[0].toLowerCase();
+	return clean;
+};
+
 const asEmbeddable = rawUrl => {
 	if (!rawUrl) return null;
 	let url;
@@ -90,18 +96,19 @@ const linkifyWithSeen = (text, seen) => text
 	.map((segment, index) => {
 		if (index % 2 === 1) {
 			const safe = escapeHtml(segment);
-			if (seen.has(safe)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+			const key = mediaKey(segment);
+			if (seen.has(key)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 			if (isImageUrl(segment)) {
-				seen.add(safe);
+				seen.add(key);
 				return `<img src="${safe}" alt="image attachment" class="inline-media">`;
 			}
 			if (isVideoUrl(segment)) {
-				seen.add(safe);
+				seen.add(key);
 				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
 			}
 			const embed = asEmbeddable(segment);
 			if (embed) {
-				seen.add(safe);
+				seen.add(key);
 				return embed;
 			}
 			return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
@@ -141,11 +148,15 @@ const renderEmbed = (embed, seenMedia) => {
 	let media = '';
 	if (mediaUrl) {
 		const safeMedia = escapeHtml(mediaUrl);
-		if (!seenMedia.has(safeMedia)) {
+		const key = mediaKey(mediaUrl);
+		if (!seenMedia.has(key)) {
 			media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
-			seenMedia.add(safeMedia);
+			seenMedia.add(key);
 		}
-		mediaCandidates.filter(Boolean).forEach(url => seenMedia.add(escapeHtml(url)));
+		mediaCandidates
+			.filter(Boolean)
+			.map(mediaKey)
+			.forEach(k => seenMedia.add(k));
 	}
 
 	if (!title && !description && !fields && !footer && !author && !media) {
@@ -300,24 +311,25 @@ async function buildTranscriptViewModel(client, ticket) {
 				const primary = att.proxy_url || att.url;
 				const safe = escapeHtml(primary || '');
 				if (!safe) return '';
-				if (seenMedia.has(safe)) return '';
-				seenMedia.add(safe);
+				const key = mediaKey(primary);
+				if (seenMedia.has(key)) return '';
+				seenMedia.add(key);
 				if (att.url) {
-					const alt = escapeHtml(att.url);
-					seenMedia.add(alt);
+					const altKey = mediaKey(att.url);
+					seenMedia.add(altKey);
 				}
 				const contentType = att.content_type || '';
 				const isImg = isImageUrl(primary) || contentType.startsWith('image/');
 				const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
 				if (isImg) {
 					return `<img src="${safe}" alt="attachment" class="inline-media">`;
-			}
-			if (isVid) {
-				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-			}
-			return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
-		})
-		.filter(Boolean);
+				}
+				if (isVid) {
+					return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+				}
+				return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+			})
+			.filter(Boolean);
 
 		const embedsRaw = (() => {
 			if (Array.isArray(message.content?.embeds)) return message.content.embeds;
@@ -352,10 +364,10 @@ async function buildTranscriptViewModel(client, ticket) {
 					: '';
 				const name = `<span class="author-name" ${nameStyle}>${escapeHtml(authorName)}</span>`;
 				const role = roleName
-					? `<span class="role-pill circle" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
+					? `<span class="role-pill circle role-label" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
 					: '';
 				const copy = message.authorId
-					? `<span class="role-pill circle copy-id-pill" data-user-id="${escapeHtml(message.authorId)}">ID</span>`
+					? `<button type="button" class="role-pill circle copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" aria-label="Copy user ID">ID</button>`
 					: '';
 				return [name, role, copy].filter(Boolean).join(' ');
 			})(),
