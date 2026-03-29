@@ -33,11 +33,9 @@ module.exports = class TransferSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply();
@@ -123,3 +121,4 @@ module.exports = class TransferSlashCommand extends SlashCommand {
 
 	}
 };
+

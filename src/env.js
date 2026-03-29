@@ -43,6 +43,7 @@ const env = {
 	OVERRIDE_ARCHIVE: () => true, // optional
 	PUBLIC_BOT: () => true, // optional
 	PUBLISH_COMMANDS: () => true, // optional
+	COMMAND_GUILD_ID: () => true, // optional
 	SUPER: () => true, // optional
 };
 

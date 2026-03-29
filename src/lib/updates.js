@@ -19,7 +19,7 @@ module.exports = client => {
 
 			switch (compared) {
 			case -1: {
-				client.log.notice('You are running a pre-release version of Discord Tickets');
+				client.log.notice('You are running a pre-release version of Ezz Tickets');
 				break;
 			}
 			case 0: {
@@ -36,7 +36,7 @@ module.exports = client => {
 				const { default: boxen } = await import('boxen');
 
 				client.log.notice(
-					short('&r&6A new version of Discord Tickets is available (&c%s&6 -> &a%s&6)&r\n'),
+					short('&r&6A new version of Ezz Tickets is available (&c%s&6 -> &a%s&6)&r\n'),
 					currentVersion,
 					latestVersion,
 					boxen(

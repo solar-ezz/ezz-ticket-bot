@@ -1,7 +1,7 @@
 const fastify = require('fastify')({ trustProxy: process.env.HTTP_TRUST_PROXY === 'true' });
 const { short } = require('leeks.js');
-const { join } = require('path');
-const { files } = require('node-dir');
+const { join, resolve } = require('path');
+const { readdirSync, statSync } = require('fs');
 const { getPrivilegeLevel } = require('./lib/users');
 const { format } = require('util');
 
@@ -160,19 +160,30 @@ module.exports = async client => {
 
 	fastify.addHook('onError', async (req, res, err) => client.log.error.http(req.id, err));
 
-	// route loading
-	const dir = join(__dirname, '/routes');
-	files(dir, {
-		exclude: /^\./,
-		match: /.js$/,
-		sync: true,
-	}).forEach(file => {
+	// route loading (sync, no node-dir to avoid windows path issues)
+	const routesRoot = resolve(__dirname, 'routes');
+	const listJs = dirPath => {
+		const entries = readdirSync(dirPath, { withFileTypes: true });
+		let out = [];
+		for (const entry of entries) {
+			if (entry.name.startsWith('.')) continue;
+			const full = join(dirPath, entry.name);
+			if (entry.isDirectory()) {
+				out = out.concat(listJs(full));
+			} else if (entry.isFile() && entry.name.endsWith('.js')) {
+				out.push(full);
+			}
+		}
+		return out;
+	};
+
+	listJs(routesRoot).forEach(file => {
 		const path = file
-			.substring(0, file.length - 3) // remove `.js`
-			.substring(dir.length) // remove higher directories
-			.replace(/\\/g, '/') // replace `\` with `/` because Windows is stupid
+			.replace(/\\/g, '/')
+			.replace(routesRoot.replace(/\\/g, '/'), '') // remove base
+			.replace(/\.js$/, '') // drop extension
 			.replace(/\[(\w+)\]/gi, ':$1') // convert [] to :
-			.replace('/index', '') || '/'; // remove index
+			.replace(/\/index$/i, '') || '/';
 		const route = require(file);
 
 		Object.keys(route).forEach(method => fastify.route({
@@ -180,7 +191,7 @@ module.exports = async client => {
 			method: method.toUpperCase(),
 			path,
 			...route[method](fastify),
-		})); // register route
+		}));
 	});
 
 	const { handler } = await import('@discord-tickets/settings/build/handler.js');

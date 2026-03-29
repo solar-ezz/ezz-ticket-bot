@@ -8,7 +8,7 @@ const getEmoji = priority => {
 	const emojis = {
 		'HIGH': '🔴',
 		'MEDIUM': '🟠',
-		'LOW': '🟢', // eslint-disable-line sort-keys
+		'LOW': '🟢', 
 	};
 	return emojis[priority];
 };
@@ -46,12 +46,9 @@ module.exports = class PrioritySlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 *
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply();
@@ -77,7 +74,7 @@ module.exports = class PrioritySlashCommand extends SlashCommand {
 			});
 		}
 
-		if (!(await isStaff(interaction.guild, interaction.user.id))) { // if user is not staff
+		if (!(await isStaff(interaction.guild, interaction.user.id))) { 
 			return await interaction.editReply({
 				embeds: [
 					new ExtendedEmbedBuilder({
@@ -97,7 +94,7 @@ module.exports = class PrioritySlashCommand extends SlashCommand {
 		else name = getEmoji(priority) + name;
 		await interaction.channel.setName(name);
 
-		// don't reassign ticket because the original is used below
+		
 		await client.prisma.ticket.update({
 			data: { priority },
 			where: { id: interaction.channel.id },
@@ -132,3 +129,4 @@ module.exports = class PrioritySlashCommand extends SlashCommand {
 };
 
 module.exports.getEmoji = getEmoji;
+

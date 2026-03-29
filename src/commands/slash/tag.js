@@ -35,11 +35,9 @@ module.exports = class TagSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		const user = interaction.options.getUser('for', false);
@@ -60,3 +58,4 @@ module.exports = class TagSlashCommand extends SlashCommand {
 		});
 	}
 };
+

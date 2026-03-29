@@ -15,11 +15,9 @@ module.exports = class PinMessageCommand extends MessageCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").MessageContextMenuCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -74,3 +72,4 @@ module.exports = class PinMessageCommand extends MessageCommand {
 		});
 	}
 };
+

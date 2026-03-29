@@ -26,6 +26,15 @@ module.exports.get = fastify => ({
 						id: true,
 						image: true,
 						name: true,
+						questions: {
+							select: {
+								id: true,
+								label: true,
+								order: true,
+								required: true,
+								type: true,
+							},
+						},
 						requiredRoles: true,
 						staffRoles: true,
 						tickets: {

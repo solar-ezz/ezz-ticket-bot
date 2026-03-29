@@ -34,8 +34,12 @@ module.exports = class extends Listener {
 
 		if (process.env.PUBLISH_COMMANDS === 'true') {
 			client.log.info('Automatically publishing commands...');
-			client.commands.publish()
-				.then(commands => client.log.success('Published %d commands', commands?.size))
+			const guildId = process.env.COMMAND_GUILD_ID;
+			const publisher = guildId
+				? client.commands.publishGuild(guildId)
+				: client.commands.publish();
+			publisher
+				.then(commands => client.log.success('Published %d commands%s', commands?.size, guildId ? ` to guild ${guildId}` : ''))
 				.catch(client.log.error);
 		}
 

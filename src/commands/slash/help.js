@@ -17,21 +17,28 @@ module.exports = class ClaimSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 		const staff = await isStaff(interaction.guild, interaction.member.id);
 		const settings = await client.prisma.guild.findUnique({ where: { id: interaction.guild.id } });
 		const getMessage = client.i18n.getLocale(settings.locale);
-		const commands = client.application.commands.cache
+		const commandLines = client.application.commands.cache
 			.filter(c => c.type === 1)
-			.map(c => `> </${c.name}:${c.id}>: ${c.description}`)
-			.join('\n');
+			.map(c => `> </${c.name}:${c.id}>: ${c.description}`);
+		const maxLen = 900;
+		const trimmed = [];
+		let used = 0;
+		for (const line of commandLines) {
+			if (used + line.length + 1 > maxLen) break;
+			trimmed.push(line);
+			used += line.length + 1;
+		}
+		const overflow = commandLines.length - trimmed.length;
+		const commands = trimmed.join('\n') + (overflow > 0 ? `\n> …${overflow} more` : '');
 		const newCommand = client.application.commands.cache.find(c => c.name === 'new');
 		const fields = [
 			{
@@ -46,10 +53,10 @@ module.exports = class ClaimSlashCommand extends SlashCommand {
 					inline: true,
 					name: getMessage('commands.slash.help.response.links.links'),
 					value: [
-						['commands', 'https://discordtickets.app/features/commands'],
-						['docs', 'https://discordtickets.app'],
-						['feedback', 'https://lnk.earth/dsctickets-feedback'],
-						['support', 'https://lnk.earth/discord'],
+						['commands', 'https:
+						['docs', 'https:
+						['feedback', 'https:
+						['support', 'https:
 					]
 						.map(([l, url]) => `> [${getMessage('commands.slash.help.response.links.' + l)}](${url})`)
 						.join('\n'),
@@ -71,10 +78,11 @@ module.exports = class ClaimSlashCommand extends SlashCommand {
 					.setColor(settings.primaryColour)
 					.setTitle(getMessage('commands.slash.help.title'))
 					.setDescription(staff
-						? `**Discord Tickets v${version} by eartharoid.**`
+						? `**Ezz Tickets v${version} by Ezz.**`
 						: getMessage('commands.slash.help.response.description', { command: `</${newCommand.name}:${newCommand.id}>` }))
 					.setFields(fields),
 			],
 		});
 	}
 };
+

@@ -185,6 +185,7 @@ async function logTicketEvent(client, {
 
 	return await channel.send({
 		components: payload?.components ?? [],
+		files: payload?.files ?? [],
 		embeds,
 	});
 }

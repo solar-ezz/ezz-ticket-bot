@@ -37,11 +37,9 @@ module.exports = class RemoveSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -87,7 +85,7 @@ module.exports = class RemoveSlashCommand extends SlashCommand {
 			});
 		}
 
-		/** @type {import("discord.js").TextChannel} */
+		
 		const ticketChannel = await interaction.guild.channels.fetch(ticket.id);
 		const member = interaction.options.getMember('member', true);
 
@@ -143,3 +141,4 @@ module.exports = class RemoveSlashCommand extends SlashCommand {
 		});
 	}
 };
+

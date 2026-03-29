@@ -35,4 +35,5 @@ presence:
 stats: true
 templates:
   transcript: transcript.md
+  transcriptHtml: transcript.html
 updates: true

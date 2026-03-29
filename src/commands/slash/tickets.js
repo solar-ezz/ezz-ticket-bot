@@ -35,11 +35,9 @@ module.exports = class TicketsSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -111,7 +109,7 @@ module.exports = class TicketsSlashCommand extends SlashCommand {
 		const closed = await client.prisma.ticket.findMany({
 			include: { category: true },
 			orderBy: { createdAt: 'desc' },
-			take: 10, // max 10 rows
+			take: 10, 
 			where: {
 				...base_filter,
 				open: false,
@@ -153,7 +151,7 @@ module.exports = class TicketsSlashCommand extends SlashCommand {
 			});
 		}
 
-		// TODO: add portal URL to view all (this list is limited to the last 10)
+		
 
 		const embed = new ExtendedEmbedBuilder({
 			iconURL: interaction.guild.iconURL(),
@@ -175,3 +173,4 @@ module.exports = class TicketsSlashCommand extends SlashCommand {
 		return await interaction.editReply({ embeds: [embed] });
 	}
 };
+

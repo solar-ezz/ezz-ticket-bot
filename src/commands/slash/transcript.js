@@ -3,15 +3,19 @@ const {
 	ApplicationCommandOptionType,
 	PermissionsBitField,
 	MessageFlags,
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle,
 } = require('discord.js');
-const fs = require('fs');
-const { join } = require('path');
-const Mustache = require('mustache');
 const { AttachmentBuilder } = require('discord.js');
 const ExtendedEmbedBuilder = require('../../lib/embed');
-const { pools } = require('../../lib/threads');
-
-const { transcript: pool } = pools;
+const {
+	buildTranscriptViewModel,
+	createTranscriptUrls,
+	ensureMarkdownBackup,
+	fetchTranscriptTicket,
+	renderMarkdown,
+} = require('../../lib/transcript');
 
 module.exports = class TranscriptSlashCommand extends SlashCommand {
 	constructor(client, options) {
@@ -42,106 +46,28 @@ module.exports = class TranscriptSlashCommand extends SlashCommand {
 				return option;
 			}),
 		});
-
-		Mustache.escape = text => text; // don't HTML-escape
-		this.template = fs.readFileSync(
-			join('./user/templates/', this.client.config.templates.transcript + '.mustache'),
-			{ encoding: 'utf8' },
-		);
 	}
 
 	shouldAllowAccess(interaction, ticket) {
-		// the creator can always get their ticket, even from outside the guild
-		if (ticket.createdById === interaction.user.id) return true; // user not member (DMs)
-		// everyone else must be in the guild
+		
+		if (ticket.createdById === interaction.user.id) return true; 
+		
 		if (interaction.guild?.id !== ticket.guildId) return false;
-		// and have authority
+		
 		if (interaction.client.supers.includes(interaction.member.id)) return true;
 		if (interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) return true;
 		if (interaction.member.roles.cache.filter(role => ticket.category.staffRoles.includes(role.id)).size > 0) return true;
 		return false;
 	}
 
-	async fillTemplate(ticket) {
-		/** @type {import("client")} */
-		const client = this.client;
-
-		ticket = await pool.queue(w => w(ticket));
-
-		const channelName = ticket.category.channelName
-			.replace(/{+\s?(user)?name\s?}+/gi, ticket.createdBy?.username)
-			.replace(/{+\s?(nick|display)(name)?\s?}+/gi, ticket.createdBy?.displayName)
-			.replace(/{+\s?num(ber)?\s?}+/gi, ticket.number);
-		const fileName = `${channelName}.${this.client.config.templates.transcript.split('.').slice(-1)[0]}`;
-		const transcript = Mustache.render(this.template, {
-			channelName,
-			closedAtFull: function () {
-				return new Intl.DateTimeFormat([ticket.guild.locale, 'en-GB'], {
-					dateStyle: 'full',
-					timeStyle: 'long',
-					timeZone: 'Etc/UTC',
-				}).format(this.closedAt);
-			},
-			createdAtFull: function () {
-				return new Intl.DateTimeFormat([ticket.guild.locale, 'en-GB'], {
-					dateStyle: 'full',
-					timeStyle: 'long',
-					timeZone: 'Etc/UTC',
-				}).format(this.createdAt);
-			},
-			createdAtTimestamp: function () {
-				return new Intl.DateTimeFormat([ticket.guild.locale, 'en-GB'], {
-					dateStyle: 'short',
-					timeStyle: 'long',
-					timeZone: 'Etc/UTC',
-				}).format(this.createdAt);
-			},
-			guildName: client.guilds.cache.get(ticket.guildId)?.name,
-			pinned: ticket.pinnedMessageIds.join(', '),
-			ticket,
-		});
-
-		return {
-			fileName,
-			transcript,
-		};
-	}
-
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction, ticketId) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 		ticketId = ticketId || interaction.options.getString('ticket', true);
-		const ticket = await client.prisma.ticket.findUnique({
-			include: {
-				archivedChannels: true,
-				archivedMessages: {
-					orderBy: { createdAt: 'asc' },
-					where: { external: false },
-				},
-				archivedRoles: true,
-				archivedUsers: true,
-				category: true,
-				claimedBy: true,
-				closedBy: true,
-				createdBy: true,
-				feedback: true,
-				guild: true,
-				questionAnswers: { include: { question: true } },
-			},
-			where: interaction.guildId && ticketId.length < 16
-				? {
-					guildId_number: {
-						guildId: interaction.guildId,
-						number: parseInt(ticketId),
-					},
-				}
-				: { id: ticketId },
-		});
+		const ticket = await fetchTranscriptTicket(client, ticketId, interaction.guildId);
 
 		if (!ticket) throw new Error(`Ticket ${ticketId} does not exist`);
 
@@ -161,15 +87,61 @@ module.exports = class TranscriptSlashCommand extends SlashCommand {
 			});
 		}
 
-		const {
-			fileName,
-			transcript,
-		} = await this.fillTemplate(ticket);
+		const viewModel = await buildTranscriptViewModel(client, ticket);
+		const { token, viewUrl, downloadUrl } = await createTranscriptUrls(client, ticket.id);
+		viewModel.transcriptUrl = viewUrl;
+		viewModel.downloadUrl = downloadUrl;
+
+		const transcript = renderMarkdown(client, viewModel);
+		await ensureMarkdownBackup(viewModel.mdFileName, transcript);
 		const attachment = new AttachmentBuilder()
 			.setFile(Buffer.from(transcript))
-			.setName(fileName);
+			.setName(viewModel.mdFileName);
 
-		await interaction.editReply({ files: [attachment] });
-		// TODO: add portal link
+		const getMessage = client.i18n.getLocale(ticket.guild.locale);
+		const resolveGuildEmoji = async (name, fallback) => {
+			const guild = client.guilds.cache.get(ticket.guildId || ticket.guild.id);
+			let found = guild?.emojis?.cache?.find(e => e.name === name);
+			if (!found && guild?.emojis?.fetch) {
+				try {
+					await guild.emojis.fetch();
+					found = guild.emojis.cache.find(e => e.name === name);
+				} catch {
+					
+				}
+			}
+			return found || fallback;
+		};
+		const successTitle = getMessage('commands.slash.transcript.success.title') || 'Transcript available';
+		const successDescription = getMessage('commands.slash.transcript.success.description', { url: viewUrl }) || 'Open the transcript online or download the Markdown backup.';
+		const components = [
+			new ActionRowBuilder()
+				.addComponents(
+					new ButtonBuilder()
+						.setEmoji(await resolveGuildEmoji('ezz_transcript', client.i18n.getMessage(ticket.guild.locale, 'buttons.transcript.emoji')))
+						.setLabel(getMessage('buttons.transcript.text'))
+						.setStyle(ButtonStyle.Link)
+						.setURL(viewUrl),
+					new ButtonBuilder()
+						.setLabel('Download .md')
+						.setStyle(ButtonStyle.Link)
+						.setURL(downloadUrl),
+				),
+		];
+
+		const embed = new ExtendedEmbedBuilder({
+			iconURL: interaction.guild?.iconURL(),
+			text: ticket.guild.footer,
+		})
+			.setColor(ticket.guild.primaryColour)
+			.setTitle(successTitle)
+			.setDescription(successDescription);
+
+		await interaction.editReply({
+			components,
+			embeds: [embed],
+			files: [attachment],
+		});
 	}
 };
+

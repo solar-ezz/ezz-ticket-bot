@@ -73,7 +73,7 @@ process.on('SIGTERM', () => exit('SIGTERM'));
 process.on('SIGINT', () => exit('SIGINT'));
 
 process.on('uncaughtException', (error, origin) => {
-	log.notice(`Discord Tickets v${pkg.version} on Node.js ${process.version} (${process.platform})`);
+	log.notice(`Ezz Tickets v${pkg.version} on Node.js ${process.version} (${process.platform})`);
 	log.warn(origin === 'uncaughtException' ? 'Uncaught exception' : 'Unhandled promise rejection' + ` (${error.name})`);
 	log.error(error);
 });

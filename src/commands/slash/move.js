@@ -31,11 +31,9 @@ module.exports = class MoveSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply();
@@ -67,7 +65,7 @@ module.exports = class MoveSlashCommand extends SlashCommand {
 
 		const getMessage = client.i18n.getLocale(ticket.guild.locale);
 
-		if (!(await isStaff(interaction.guild, interaction.user.id))) { // if user is not staff
+		if (!(await isStaff(interaction.guild, interaction.user.id))) { 
 			return await interaction.editReply({
 				embeds: [
 					new ExtendedEmbedBuilder({
@@ -99,36 +97,36 @@ module.exports = class MoveSlashCommand extends SlashCommand {
 				flags: MessageFlags.Ephemeral,
 			});
 		} else {
-			// don't reassign `ticket`, the previous value is used below
+			
 			await client.prisma.ticket.update({
 				data: { category: { connect: { id: newCategory.id } } },
 				where: { id: ticket.id },
 			});
 
-			// alias
+			
 			const $counters = client.tickets.$count.categories;
 
-			// make sure new category exist (#531)
+			
 			$counters[newCategory.id] ??= {};
 
-			// more specific aliases
+			
 			const $oldCategory = $counters[ticket.categoryId];
 			const $newCategory = $counters[newCategory.id];
 
-			// decrement old's total and member count
+			
 			$oldCategory.total--;
 			$oldCategory[ticket.createdById]--;
 
-			// increment new's totaL count
+			
 			$newCategory.total ||= 0;
 			$newCategory.total++;
 
-			// increment new's member count
+			
 			$newCategory[ticket.createdById] ||= 0;
 			$newCategory[ticket.createdById]++;
 
-			// these 3 could be done separately,
-			// but using `setParent`, `setName` etc instead of a single `edit` call increases the number of API requests
+			
+			
 			if (
 				newCategory.staffRoles !== ticket.category.staffRoles ||
 				newCategory.channelName !== ticket.category.channelName ||
@@ -180,3 +178,4 @@ module.exports = class MoveSlashCommand extends SlashCommand {
 		}
 	}
 };
+

@@ -12,6 +12,8 @@ const {
 	TextInputBuilder,
 	TextInputStyle,
 	MessageFlags,
+	AttachmentBuilder,
+	PermissionsBitField,
 } = require('discord.js');
 const emoji = require('node-emoji');
 const ms = require('ms');
@@ -20,6 +22,9 @@ const { logTicketEvent } = require('../logging');
 const { isStaff } = require('../users');
 const { Collection } = require('discord.js');
 const spacetime = require('spacetime');
+const { createTranscriptUrls } = require('../transcript');
+const { join } = require('path');
+const fs = require('fs');
 
 const { getSUID } = require('../logging');
 const {
@@ -50,6 +55,39 @@ module.exports = class TicketManager {
 		this.$count = { categories: {} };
 		this.$numbers = {};
 		this.$stale = new Collection();
+		this.$emojiCache = new Map();
+	}
+
+	getGuildEmoji(guildId, name, fallback) {
+		if (!guildId) return fallback;
+		const cacheKey = `${guildId}:${name}`;
+		if (this.$emojiCache.has(cacheKey)) return this.$emojiCache.get(cacheKey);
+
+		const guild = this.client.guilds.cache.get(guildId);
+		const found = guild?.emojis?.cache?.find(e => e.name === name);
+		const value = found || fallback;
+		this.$emojiCache.set(cacheKey, value);
+		return value;
+	}
+
+	async getGuildEmojiAsync(guildId, name, fallback) {
+		if (!guildId) return fallback;
+		const cacheKey = `${guildId}:${name}`;
+		if (this.$emojiCache.has(cacheKey)) return this.$emojiCache.get(cacheKey);
+
+		const guild = this.client.guilds.cache.get(guildId);
+		let found = guild?.emojis?.cache?.find(e => e.name === name);
+		if (!found && guild?.emojis?.fetch) {
+			try {
+				await guild.emojis.fetch();
+				found = guild.emojis.cache.find(e => e.name === name);
+			} catch {
+				// ignore fetch errors, fallback will be used
+			}
+		}
+		const value = found || fallback;
+		this.$emojiCache.set(cacheKey, value);
+		return value;
 	}
 
 	/**
@@ -528,7 +566,7 @@ module.exports = class TicketManager {
 				new ButtonBuilder()
 					.setCustomId(JSON.stringify({ action: 'claim' }))
 					.setStyle(ButtonStyle.Secondary)
-					.setEmoji(getMessage('buttons.claim.emoji'))
+					.setEmoji(this.getGuildEmoji(category.guild.id || category.guildId, 'ezz_claim', getMessage('buttons.claim.emoji')))
 					.setLabel(getMessage('buttons.claim.text')),
 			);
 		}
@@ -641,23 +679,22 @@ module.exports = class TicketManager {
 						value: await crypto.queue(w => w.decrypt(ticket.topic)),
 					});
 				}
-				channel.send({
-					components: category.guild.archive
-						? [
-							new ActionRowBuilder()
-								.addComponents(
-									new ButtonBuilder()
-										.setCustomId(JSON.stringify({
-											action: 'transcript',
-											ticket: referencesTicketId,
-										}))
-										.setStyle(ButtonStyle.Primary)
-										.setEmoji(getMessage('buttons.transcript.emoji'))
-										.setLabel(getMessage('buttons.transcript.text')),
+				let transcriptRow;
+				if (category.guild.archive) {
+					const { viewUrl } = await createTranscriptUrls(this.client, referencesTicketId);
+					const transcriptEmoji = await this.getGuildEmojiAsync(category.guild.id || category.guildId, 'ezz_transcript', getMessage('buttons.transcript.emoji'));
+					transcriptRow = new ActionRowBuilder()
+						.addComponents(
+							new ButtonBuilder()
+								.setStyle(ButtonStyle.Link)
+								.setEmoji(transcriptEmoji)
+								.setLabel(getMessage('buttons.transcript.text'))
+								.setURL(viewUrl),
+						);
+				}
 
-								),
-						]
-						: [],
+				channel.send({
+					components: transcriptRow ? [transcriptRow] : [],
 					embeds: [embed],
 				}).catch(this.client.log.error);
 			}
@@ -879,7 +916,7 @@ module.exports = class TicketManager {
 					new ButtonBuilder()
 						.setCustomId(JSON.stringify({ action: 'unclaim' }))
 						.setStyle(ButtonStyle.Secondary)
-						.setEmoji(getMessage('buttons.unclaim.emoji'))
+						.setEmoji(this.getGuildEmoji(ticket.guild.id || ticket.guildId, 'ezz_claim', getMessage('buttons.unclaim.emoji')))
 						.setLabel(getMessage('buttons.unclaim.text')),
 				);
 			}
@@ -975,7 +1012,7 @@ module.exports = class TicketManager {
 					new ButtonBuilder()
 						.setCustomId(JSON.stringify({ action: 'claim' }))
 						.setStyle(ButtonStyle.Secondary)
-						.setEmoji(getMessage('buttons.claim.emoji'))
+						.setEmoji(this.getGuildEmoji(ticket.guild.id || ticket.guildId, 'ezz_claim', getMessage('buttons.claim.emoji')))
 						.setLabel(getMessage('buttons.claim.text')),
 				);
 			}
@@ -1281,66 +1318,104 @@ module.exports = class TicketManager {
 		const components = [];
 
 		if (ticket.guild.archive) {
+			const { viewUrl } = await createTranscriptUrls(this.client, ticket.id);
 			components.push(
 				new ActionRowBuilder()
 					.addComponents(
 						new ButtonBuilder()
-							.setCustomId(JSON.stringify({
-								action: 'transcript',
-								ticket: ticket.id,
-							}))
-							.setStyle(ButtonStyle.Primary)
+							.setStyle(ButtonStyle.Link)
 							.setEmoji(getMessage('buttons.transcript.emoji'))
-							.setLabel(getMessage('buttons.transcript.text')),
-
+							.setLabel(getMessage('buttons.transcript.text'))
+							.setURL(viewUrl),
 					),
 			);
 		}
 
-		const fields = {
-			closed: {
-				inline: true,
-				name: getMessage('dm.closed.fields.closed.name'),
-				value: getMessage('dm.closed.fields.closed.value', {
-					duration: ms(ticket.closedAt - ticket.createdAt, { long: true }),
-					timestamp: `<t:${Math.floor(ticket.closedAt / 1000)}:f>`,
-				}),
-			},
-			closedById: ticket.closedById && {
-				inline: true,
-				name: getMessage('dm.closed.fields.closed_by'),
-				value: `<@${ticket.closedById}>`,
-			},
-			created: {
-				inline: true,
-				name: getMessage('dm.closed.fields.created'),
-				value: `<t:${Math.floor(ticket.createdAt / 1000)}:f>`,
-			},
-			feedback: ticket.feedback && {
-				inline: true,
-				name: getMessage('dm.closed.fields.feedback'),
-				value: Array(ticket.feedback.rating).fill('⭐').join(' ') + ` (${ticket.feedback.rating}/5)`,
-			},
-			firstResponseAt: ticket.firstResponseAt && {
-				inline: true,
-				name: getMessage('dm.closed.fields.response'),
-				value: ms(ticket.firstResponseAt - ticket.createdAt, { long: true }),
-			},
-			reason: reason && {
-				inline: true,
-				name: getMessage('dm.closed.fields.reason'),
-				value: reason,
-			},
-			ticket: {
-				inline: true,
-				name: getMessage('dm.closed.fields.ticket'),
-				value: `${ticket.category.name} **#${ticket.number}**`,
-			},
-			topic: ticket.topic && {
-				inline: true,
-				name: getMessage('dm.closed.fields.topic'),
-				value: await crypto.queue(w => w.decrypt(ticket.topic)),
-			},
+		const emojiFallback = {
+			id: '🆔',
+			tick: '✅',
+			lock: '🔒',
+			clock: '⏰',
+			stamp: '📌',
+			reason: '📝',
+		};
+
+		const ensureEmoji = async emojiName => {
+			const cacheKey = `${guild.id}:${emojiName}`;
+			if (this.$emojiCache.has(cacheKey)) return this.$emojiCache.get(cacheKey);
+
+			const aliasName = {
+				stamp: 'ezz_claim',
+			};
+
+			const existing = guild.emojis.cache.find(e => e.name === `ezz_${emojiName}` || e.name === aliasName[emojiName]);
+			if (existing) {
+				this.$emojiCache.set(cacheKey, existing);
+				return existing;
+			}
+
+			const fileAlias = {
+				stamp: 'claim',
+			};
+
+			const filePath = join(process.cwd(), 'embed-emojis', `${fileAlias[emojiName] || emojiName}.png`);
+			const canUseCustom = fs.existsSync(filePath)
+				&& guild.members.me?.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers);
+
+			if (!canUseCustom) {
+				this.$emojiCache.set(cacheKey, null);
+				return null;
+			}
+
+			try {
+				const created = await guild.emojis.create({
+					attachment: filePath,
+					name: `ezz_${emojiName}`,
+				});
+				this.$emojiCache.set(cacheKey, created);
+				return created;
+			} catch (error) {
+				this.client.log.warn(`Failed to use custom emoji ${emojiName}: ${error?.message || error}`);
+				this.$emojiCache.set(cacheKey, null);
+				return null;
+			}
+		};
+
+		const label = async (emojiName, text) => {
+			const custom = await ensureEmoji(emojiName);
+			const prefix = custom ? `<:${custom.name}:${custom.id}>` : (emojiFallback[emojiName] || '✅');
+			return `${prefix} ${text}`;
+		};
+
+		const fieldTicketId = {
+			inline: true,
+			name: await label('id', 'Ticket ID'),
+			value: `\`${ticket.id}\``,
+		};
+		const fieldOpenedBy = {
+			inline: true,
+			name: await label('tick', 'Opened By'),
+			value: ticket.createdById ? `<@${ticket.createdById}>` : getMessage('ticket.answers.no_value'),
+		};
+		const fieldClosedBy = {
+			inline: true,
+			name: await label('lock', 'Closed By'),
+			value: ticket.closedById ? `<@${ticket.closedById}>` : getMessage('ticket.answers.no_value'),
+		};
+		const fieldOpenTime = {
+			inline: true,
+			name: await label('clock', 'Open Time'),
+			value: `<t:${Math.floor(ticket.createdAt / 1000)}:f>`,
+		};
+		const fieldClaimedBy = {
+			inline: true,
+			name: await label('stamp', 'Claimed By'),
+			value: ticket.claimedById ? `<@${ticket.claimedById}>` : getMessage('ticket.answers.no_value'),
+		};
+		const fieldReason = {
+			inline: false,
+			name: await label('reason', 'Close Reason'),
+			value: reason || getMessage('ticket.answers.no_value'),
 		};
 
 		const dmEmbed = new ExtendedEmbedBuilder({
@@ -1348,15 +1423,15 @@ module.exports = class TicketManager {
 			text: ticket.guild.footer,
 		})
 			.setColor(ticket.guild.primaryColour)
-			.setTitle(getMessage('dm.closed.title'));
-
-		dmEmbed.addFields(fields.ticket);
-		if (ticket.topic) dmEmbed.addFields(fields.topic);
-		dmEmbed.addFields(fields.created, fields.closed);
-		if (ticket.firstResponseAt) dmEmbed.addFields(fields.firstResponseAt);
-		if (ticket.feedback) dmEmbed.addFields(fields.feedback);
-		if (ticket.closedById) dmEmbed.addFields(fields.closedById);
-		if (reason) dmEmbed.addFields(fields.reason);
+			.setTitle(getMessage('dm.closed.title'))
+			.addFields([
+				fieldTicketId,
+				fieldOpenedBy,
+				fieldClosedBy,
+				fieldOpenTime,
+				fieldClaimedBy,
+				fieldReason,
+			]);
 
 		try {
 			const creator = guild.members.cache.get(ticket.createdById);
@@ -1370,24 +1445,14 @@ module.exports = class TicketManager {
 			this.client.log.error(error);
 		}
 
-		const fieldsArray = [];
-		if (ticket.topic) fieldsArray.push(fields.topic);
-		fieldsArray.push(fields.created, fields.closed);
-		if (ticket.firstResponseAt) fieldsArray.push(fields.firstResponseAt);
-		if (fields.feedback) {
-			fieldsArray.push(
-				{
-					...fields.feedback,
-					inline: true,
-					name: getMessage('modals.feedback.rating.label'),
-				},
-				{
-					inline: true,
-					name: getMessage('modals.feedback.comment.label'),
-					value: (ticket.feedback.comment && await crypto.queue(w => w.decrypt(ticket.feedback.comment))) || getMessage('ticket.answers.no_value'),
-				});
-		}
-		if (reason) fieldsArray.push(fields.reason);
+		const fieldsArray = [
+			fieldTicketId,
+			fieldOpenedBy,
+			fieldClosedBy,
+			fieldOpenTime,
+			fieldClaimedBy,
+			fieldReason,
+		];
 
 		logTicketEvent(this.client, {
 			action: 'close',

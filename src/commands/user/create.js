@@ -26,11 +26,9 @@ module.exports = class CreateUserCommand extends UserCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").UserContextMenuCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -67,7 +65,7 @@ module.exports = class CreateUserCommand extends UserCommand {
 									targetUser: interaction.targetId,
 								}))
 								.setStyle(ButtonStyle.Primary)
-								.setEmoji(getMessage('buttons.create.emoji')) // emoji.get('ticket')
+								.setEmoji(getMessage('buttons.create.emoji')) 
 								.setLabel(getMessage('buttons.create.text')),
 						),
 				],
@@ -185,3 +183,4 @@ module.exports = class CreateUserCommand extends UserCommand {
 		}
 	}
 };
+

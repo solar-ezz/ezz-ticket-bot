@@ -28,11 +28,9 @@ module.exports = class NewSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 *
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
 		await useGuild(this.client, interaction, { referencesTicketId: interaction.options.getString('references', false) });
 	}
 };
+

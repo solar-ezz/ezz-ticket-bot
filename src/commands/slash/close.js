@@ -26,12 +26,11 @@ module.exports = class CloseSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 		await client.tickets.beforeRequestClose(interaction);
 	}
 };
+

@@ -233,7 +233,7 @@ commands:
           description: The member to list the tickets of
           name: member
       response:
-        description: Use {transcript} to download the transcript of a ticket.
+        description: Use {transcript} to open transcripts on the web and grab a Markdown backup.
         fields:
           closed:
             name: Closed tickets
@@ -251,8 +251,11 @@ commands:
       description: Change the topic of a ticket
       name: topic
     transcript:
-      description: Get the transcript of a ticket
+      description: Open the transcript of a ticket on the web
       name: transcript
+      success:
+        description: The transcript is ready. Use the buttons below to view it online or download the Markdown copy.
+        title: Transcript available
       not_staff:
         description: Only staff members can read the transcripts of others' tickets.
         title: ❌ Error

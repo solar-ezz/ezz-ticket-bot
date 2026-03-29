@@ -14,10 +14,9 @@ module.exports = class CreateMessageCommand extends MessageCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").MessageContextMenuCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
 		await useGuild(this.client, interaction, { referencesMessageId: interaction.targetId });
 	}
 };
+

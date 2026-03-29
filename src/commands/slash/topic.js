@@ -24,11 +24,9 @@ module.exports = class TopicSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		const ticket = await client.prisma.ticket.findUnique({
@@ -69,7 +67,7 @@ module.exports = class TopicSlashCommand extends SlashCommand {
 			.setPlaceholder(getMessage('modals.topic.placeholder'))
 			.setRequired(true);
 
-		// why can't discord.js accept null or undefined :(
+		
 		if (ticket.topic) field.setValue(await crypto.queue(w => w.decrypt(ticket.topic)));
 
 		await interaction.showModal(
@@ -86,3 +84,4 @@ module.exports = class TopicSlashCommand extends SlashCommand {
 		);
 	}
 };
+

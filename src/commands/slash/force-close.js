@@ -53,11 +53,9 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction} interaction
-	 */
+	
 	async run(interaction) {
-		/** @type {import("client")} */
+		
 		const client = this.client;
 
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -66,7 +64,7 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 		const getMessage = client.i18n.getLocale(settings.locale);
 		let ticket;
 
-		if (!(await isStaff(interaction.guild, interaction.user.id))) { // if user is not staff
+		if (!(await isStaff(interaction.guild, interaction.user.id))) { 
 			return await interaction.editReply({
 				embeds: [
 					new ExtendedEmbedBuilder({
@@ -80,7 +78,7 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 			});
 		}
 
-		if (interaction.options.getString('ticket', false)) { // if ticket option is passed
+		if (interaction.options.getString('ticket', false)) { 
 			ticket = await client.prisma.ticket.findUnique({
 				include: { category: true },
 				where: { id: interaction.options.getString('ticket') },
@@ -119,7 +117,7 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 				});
 			}, ms('3s'));
 
-		} else if (interaction.options.getString('time', false)) { // if time option is passed
+		} else if (interaction.options.getString('time', false)) { 
 			const time = ms(interaction.options.getString('time', false));
 
 			if (!time) {
@@ -139,7 +137,7 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 			const categoryId = interaction.options.getInteger('category', false);
 			const tickets = await client.prisma.ticket.findMany({
 				where: {
-					categoryId: categoryId ?? undefined, // must be undefined not null
+					categoryId: categoryId ?? undefined, 
 					guildId: interaction.guild.id,
 					lastMessageAt: { lte: new Date(Date.now() - time) },
 					open: true,
@@ -286,3 +284,4 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 		}
 	}
 };
+
