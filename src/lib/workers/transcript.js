@@ -33,8 +33,6 @@ function getTranscript(ticket) {
 			if (embed.footer?.text) message.text += '\n\t' + embed.footer.text;
 			if (embed.author?.name) message.text += '\n\t' + embed.author.name;
 			if (embed.url) message.text += '\n\t' + embed.url;
-			if (embed.image?.url) message.text += '\n\t' + embed.image.url;
-			if (!embed.image?.url && embed.thumbnail?.url) message.text += '\n\t' + embed.thumbnail.url;
 		});
 		message.number = 'M' + String(i + 1).padStart(ticket.archivedMessages.length.toString().length, '0');
 		ticket.archivedMessages[i] = message;

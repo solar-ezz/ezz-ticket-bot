@@ -140,10 +140,8 @@ const renderEmbed = embed => {
 		}
 	}
 
-	const rawJson = `<details class="embed-json-wrap"><summary>Raw embed JSON</summary><pre class="embed-json">${escapeHtml(JSON.stringify(embed, null, 2))}</pre></details>`;
-
 	if (!title && !description && !fields && !footer && !author && !media) {
-		return `<div class="embed-card">${rawJson}</div>`;
+		return '';
 	}
 
 	return `<div class="embed-card">
@@ -153,7 +151,6 @@ const renderEmbed = embed => {
 		${fields}
 		${media}
 		${footer || ''}
-		${rawJson}
 	</div>`;
 };
 
@@ -284,17 +281,23 @@ async function buildTranscriptViewModel(client, ticket) {
 		let contentHtml = linkify(content)
 			.replace(/\n/g, '<br>')
 			.replace(/\t/g, '&nbsp;&nbsp;');
+		contentHtml = contentHtml
+			.replace(/^(<br>|&nbsp;|\s)+/gi, '')
+			.replace(/(<br>\s*)+$/gi, '');
 
-	const attachmentBlocks = (message.content?.attachments || [])
-		.map(att => {
-			const primary = att.proxy_url || att.url;
-			const safe = escapeHtml(primary || '');
-			if (!safe) return '';
-			const contentType = att.content_type || '';
-			const isImg = isImageUrl(primary) || contentType.startsWith('image/');
-			const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
-			if (isImg) {
-				return `<img src="${safe}" alt="attachment" class="inline-media">`;
+		const seenMedia = new Set();
+		const attachmentBlocks = (message.content?.attachments || [])
+			.map(att => {
+				const primary = att.proxy_url || att.url;
+				const safe = escapeHtml(primary || '');
+				if (!safe) return '';
+				if (seenMedia.has(safe)) return '';
+				seenMedia.add(safe);
+				const contentType = att.content_type || '';
+				const isImg = isImageUrl(primary) || contentType.startsWith('image/');
+				const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
+				if (isImg) {
+					return `<img src="${safe}" alt="attachment" class="inline-media">`;
 			}
 			if (isVid) {
 				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
@@ -314,7 +317,7 @@ async function buildTranscriptViewModel(client, ticket) {
 			.filter(Boolean);
 		if (!embedCards.length && embedsRaw.length > 0) {
 			const rawDump = escapeHtml(JSON.stringify(embedsRaw, null, 2));
-			embedCards = [`<div class="embed-card muted"><pre class="embed-json">${rawDump}</pre></div>`];
+			embedCards = [`<div class="embed-card muted">[embed]</div>`];
 		}
 
 		const hasEmbeds = embedsRaw.length > 0;
