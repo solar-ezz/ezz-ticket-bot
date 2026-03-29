@@ -4,7 +4,43 @@
 		const loader = document.getElementById('loader');
 		if (loader) loader.remove();
 		fixAvatars();
+		removeDuplicateMedia();
 	});
+
+	function removeDuplicateMedia() {
+		document.querySelectorAll('.chat-msg').forEach(msg => {
+			// Remove big inline-media videos when an embed video already exists for the same source
+			const inlineVideos = Array.from(msg.querySelectorAll('video.inline-media'));
+			inlineVideos.forEach(inlineVid => {
+				const inlineSrc = (inlineVid.src || inlineVid.querySelector('source')?.src || '').split('?')[0];
+				const embedVideos = Array.from(msg.querySelectorAll('video:not(.inline-media)'));
+				const isDupe = embedVideos.some(ev => {
+					const evSrc = (ev.src || ev.querySelector('source')?.src || '').split('?')[0];
+					// Compare by filename without extension to handle mp4 vs webm differences
+					const inlineFile = inlineSrc.split('/').pop().replace(/\.[^.]+$/, '');
+					const embedFile = evSrc.split('/').pop().replace(/\.[^.]+$/, '');
+					return inlineFile && embedFile && (inlineFile === embedFile || inlineSrc === evSrc);
+				});
+				if (isDupe) {
+					const parent = inlineVid.parentElement;
+					if (parent && parent !== msg && (parent.tagName === 'A' || parent.classList.contains('embed-media'))) {
+						parent.remove();
+					} else {
+						inlineVid.remove();
+					}
+				}
+			});
+
+			// Same deduplication for inline-media images
+			const inlineImgs = Array.from(msg.querySelectorAll('img.inline-media'));
+			inlineImgs.forEach(inlineImg => {
+				const inlineSrc = inlineImg.src.split('?')[0];
+				const embedImgs = Array.from(msg.querySelectorAll('img:not(.inline-media):not(.avatar)'));
+				const isDupe = embedImgs.some(ei => ei.src.split('?')[0] === inlineSrc);
+				if (isDupe) inlineImg.remove();
+			});
+		});
+	}
 
 	function fixAvatars() {
 		document.querySelectorAll('img.avatar').forEach(img => {

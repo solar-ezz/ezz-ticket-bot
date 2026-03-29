@@ -264,6 +264,13 @@ hr {
     flex-shrink: 0;
 }
 
+.author {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
 .author-name {
     font-weight: 700;
     font-size: 14px;
