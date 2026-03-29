@@ -67,7 +67,7 @@
 				ta.remove();
 			}
 			btn.classList.add('copied');
-			btn.textContent = '✓ Copied';
+			btn.textContent = '✓';
 			setTimeout(() => {
 				btn.classList.remove('copied');
 				btn.textContent = original;

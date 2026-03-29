@@ -136,11 +136,17 @@ const renderEmbed = (embed, seenMedia) => {
 		embed.image?.url,
 	].filter(Boolean);
 
+	const filenameOf = url => {
+		try { return new URL(url).pathname.split('/').pop().split('?')[0].toLowerCase(); } catch { return ''; }
+	};
+
 	let media = '';
 	const mediaUrl = mediaCandidates[0] || null;
 	if (mediaUrl) {
 		const key = mediaKey(mediaUrl);
-		if (!seenMedia.has(key)) {
+		const fname = filenameOf(mediaUrl);
+		const alreadySeen = seenMedia.has(key) || (fname && [...seenMedia].some(s => filenameOf(s) === fname && fname !== ''));
+		if (!alreadySeen) {
 			const safeMedia = escapeHtml(mediaUrl);
 			if (isVideoUrl(mediaUrl)) {
 				media = `<video src="${safeMedia}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
@@ -344,7 +350,7 @@ async function buildTranscriptViewModel(client, ticket) {
 					? `<span class="role-pill" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
 					: '';
 				const copy = message.authorId
-					? `<button type="button" class="copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" title="Copy user ID">\u29C1 ${escapeHtml(message.authorId)}</button>`
+					? `<button type="button" class="copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" title="${escapeHtml(message.authorId)}">&#x1F4CB;</button>`
 					: '';
 				return [name, role, copy].filter(Boolean).join('');
 			})(),
