@@ -237,14 +237,9 @@ hr {
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    background: var(--panel-2);
     flex-shrink: 0;
     object-fit: cover;
-}
-
-.chat-msg img.avatar.avatar-error {
     background: var(--panel-2);
-    border: 1px solid var(--border);
 }
 
 .chat-msg header {
@@ -253,11 +248,6 @@ hr {
     justify-content: space-between;
     gap: 8px;
     font-size: 14px;
-}
-
-.chat-msg .author {
-    font-weight: 700;
-    color: var(--text);
 }
 
 .chat-msg .header-left {
@@ -277,65 +267,37 @@ hr {
 .author-name {
     font-weight: 700;
     font-size: 14px;
+    color: var(--text);
 }
 
 .role-pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 6px;
+    padding: 1px 7px;
+    border-radius: 5px;
     border: 1px solid var(--border);
     font-size: 11px;
     font-weight: 600;
-    background: var(--panel-2);
-    color: var(--text);
-    line-height: 1.6;
-}
-
-.role-pill .role-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    background: var(--accent);
-}
-
-.copy-id {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--accent);
-    background: rgba(88,101,242,0.12);
-    color: var(--accent);
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.6;
-    transition: background 120ms ease, color 120ms ease;
-    user-select: none;
-}
-
-.copy-id:hover {
-    background: var(--accent);
-    color: #fff;
+    background: rgba(255,255,255,0.06);
+    line-height: 1.7;
+    vertical-align: middle;
 }
 
 .copy-id-pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 6px;
+    gap: 3px;
+    padding: 1px 7px;
+    border-radius: 5px;
     border: 1px solid var(--accent);
-    background: rgba(88,101,242,0.12);
+    background: rgba(88,101,242,0.13);
     color: var(--accent);
     cursor: pointer;
     font-size: 11px;
     font-weight: 600;
-    line-height: 1.6;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    line-height: 1.7;
+    vertical-align: middle;
     transition: background 120ms ease, color 120ms ease;
     user-select: none;
 }
@@ -382,7 +344,6 @@ hr {
 .chat-msg .body {
     color: #dfe1e6;
     margin-top: 4px;
-    white-space: pre-wrap;
     word-break: break-word;
 }
 
@@ -414,7 +375,7 @@ hr {
 .chat-msg .body .embed-media {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     margin-top: 4px;
 }
 
@@ -432,33 +393,6 @@ hr {
     background: transparent;
 }
 
-.embed-json {
-    margin: 4px 0 0;
-    padding: 8px 10px;
-    background: #0c0f16;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 12px;
-    color: #cdd3e1;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 240px;
-    overflow: auto;
-    line-height: 1.4;
-}
-
-.embed-json-wrap summary {
-    cursor: pointer;
-    color: var(--muted);
-    font-size: 12px;
-    padding: 2px 0;
-}
-
-.embed-json-wrap {
-    margin-top: 4px;
-}
-
 .embed-title {
     font-weight: 700;
     margin-bottom: 4px;
@@ -467,8 +401,7 @@ hr {
 
 .embed-description {
     color: #dfe1e6;
-    margin-bottom: 6px;
-    white-space: pre-wrap;
+    margin-bottom: 4px;
     word-break: break-word;
     line-height: 1.4;
 }
@@ -477,7 +410,7 @@ hr {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 6px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .embed-field {
@@ -494,7 +427,6 @@ hr {
 }
 
 .embed-field-value {
-    white-space: pre-wrap;
     word-break: break-word;
     color: #dfe1e6;
     font-size: 13px;

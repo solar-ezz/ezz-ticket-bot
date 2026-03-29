@@ -53,8 +53,7 @@ const isVideoUrl = url => {
 
 const mediaKey = url => {
 	if (!url) return '';
-	const clean = url.split(/[?#]/)[0].toLowerCase();
-	return clean;
+	return url.split(/[?#]/)[0].toLowerCase();
 };
 
 const asEmbeddable = rawUrl => {
@@ -70,16 +69,14 @@ const asEmbeddable = rawUrl => {
 	if (host.includes('tenor.com')) {
 		const match = rawUrl.match(/tenor\.com\/view\/[^/]*-([0-9]+)/i);
 		if (match?.[1]) {
-			const id = match[1];
-			return `<iframe src="https://tenor.com/embed/${id}" class="inline-media iframe-media" frameborder="0" allowtransparency="true" scrolling="no"></iframe>`;
+			return `<iframe src="https://tenor.com/embed/${match[1]}" class="inline-media iframe-media" frameborder="0" allowtransparency="true" scrolling="no"></iframe>`;
 		}
 	}
 
 	if (host.includes('giphy.com')) {
 		const match = rawUrl.match(/giphy\.com\/gifs\/[^/]*-([A-Za-z0-9]+)/i);
 		if (match?.[1]) {
-			const id = match[1];
-			return `<iframe src="https://giphy.com/embed/${id}" class="inline-media iframe-media" frameborder="0" allow="fullscreen"></iframe>`;
+			return `<iframe src="https://giphy.com/embed/${match[1]}" class="inline-media iframe-media" frameborder="0" allow="fullscreen"></iframe>`;
 		}
 	}
 
@@ -126,11 +123,7 @@ const renderEmbed = (embed, seenMedia) => {
 		? `<div class="embed-description">${linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div>`
 		: '';
 	const fields = Array.isArray(data.fields) && data.fields.length
-		? `<div class="embed-fields">${data.fields.map(field => `
-				<div class="embed-field">
-					<div class="embed-field-name">${escapeHtml(field?.name || '')}</div>
-					<div class="embed-field-value">${linkifyWithSeen(field?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div>
-				</div>`).join('')}</div>`
+		? `<div class="embed-fields">${data.fields.map(field => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(field?.name || '')}</div><div class="embed-field-value">${linkifyWithSeen(field?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div></div>`).join('')}</div>`
 		: '';
 	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
 	const author = data.author?.name ? `<div class="embed-author">${escapeHtml(data.author.name)}</div>` : '';
@@ -141,36 +134,27 @@ const renderEmbed = (embed, seenMedia) => {
 		data.video?.url,
 		embed.thumbnail?.url,
 		embed.image?.url,
-		data.url,
-	];
-	const mediaUrl = mediaCandidates.find(Boolean) || null;
+	].filter(Boolean);
 
 	let media = '';
+	const mediaUrl = mediaCandidates[0] || null;
 	if (mediaUrl) {
-		const safeMedia = escapeHtml(mediaUrl);
 		const key = mediaKey(mediaUrl);
 		if (!seenMedia.has(key)) {
-			media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
+			const safeMedia = escapeHtml(mediaUrl);
+			if (isVideoUrl(mediaUrl)) {
+				media = `<video src="${safeMedia}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+			} else {
+				media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
+			}
 			seenMedia.add(key);
 		}
-		mediaCandidates
-			.filter(Boolean)
-			.map(mediaKey)
-			.forEach(k => seenMedia.add(k));
+		mediaCandidates.map(mediaKey).forEach(k => seenMedia.add(k));
 	}
 
-	if (!title && !description && !fields && !footer && !author && !media) {
-		return '';
-	}
+	if (!title && !description && !fields && !footer && !author && !media) return '';
 
-	return `<div class="embed-card">
-		${author}
-		${title}
-		${description}
-		${fields}
-		${media}
-		${footer || ''}
-	</div>`;
+	return `<div class="embed-card">${author}${title}${description}${fields}${media}${footer}</div>`;
 };
 
 const resolveAvatar = author => {
@@ -298,6 +282,7 @@ async function buildTranscriptViewModel(client, ticket) {
 		const roleColor = normalizeHex(message.author?.role?.colour);
 		const content = message.text ?? '';
 		const seenMedia = new Set();
+
 		let contentHtml = linkifyWithSeen(content, seenMedia)
 			.replace(/\n/g, '<br>')
 			.replace(/\t/g, '&nbsp;&nbsp;');
@@ -314,19 +299,12 @@ async function buildTranscriptViewModel(client, ticket) {
 				const key = mediaKey(primary);
 				if (seenMedia.has(key)) return '';
 				seenMedia.add(key);
-				if (att.url) {
-					const altKey = mediaKey(att.url);
-					seenMedia.add(altKey);
-				}
+				if (att.url) seenMedia.add(mediaKey(att.url));
 				const contentType = att.content_type || '';
 				const isImg = isImageUrl(primary) || contentType.startsWith('image/');
 				const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
-				if (isImg) {
-					return `<img src="${safe}" alt="attachment" class="inline-media">`;
-				}
-				if (isVid) {
-					return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-				}
+				if (isImg) return `<img src="${safe}" alt="attachment" class="inline-media">`;
+				if (isVid) return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
 				return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 			})
 			.filter(Boolean);
@@ -346,7 +324,8 @@ async function buildTranscriptViewModel(client, ticket) {
 
 		const hasEmbeds = embedsRaw.length > 0;
 		const hasAttachments = attachmentBlocks.length > 0;
-		const hasText = (content && content.trim().length > 0);
+		const hasText = content && content.trim().length > 0;
+
 		if (!hasText && !hasEmbeds && !hasAttachments) {
 			contentHtml = '<span class="muted">[no content, likely embedded message]</span>';
 		} else {
@@ -359,17 +338,15 @@ async function buildTranscriptViewModel(client, ticket) {
 			avatar: escapeHtml(resolveAvatar(message.author)),
 			author: escapeHtml(authorName),
 			authorHtml: (() => {
-				const nameStyle = roleColor
-					? `style="color:${roleColor};--role-color:${roleColor};"`
-					: '';
-				const name = `<span class="author-name" ${nameStyle}>${escapeHtml(authorName)}</span>`;
+				const nameStyle = roleColor ? ` style="color:${roleColor}"` : '';
+				const name = `<span class="author-name"${nameStyle}>${escapeHtml(authorName)}</span>`;
 				const role = roleName
-					? `<span class="role-pill circle role-label" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
+					? `<span class="role-pill" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
 					: '';
 				const copy = message.authorId
-					? `<button type="button" class="role-pill circle copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" aria-label="Copy user ID">ID</button>`
+					? `<button type="button" class="copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" title="Copy user ID">\u29C1 ${escapeHtml(message.authorId)}</button>`
 					: '';
-				return [name, role, copy].filter(Boolean).join(' ');
+				return [name, role, copy].filter(Boolean).join('');
 			})(),
 			authorId: escapeHtml(message.authorId || ''),
 			contentHtml,
