@@ -146,8 +146,8 @@ module.exports.get = () => ({
 						<td>${escapeHtml(r.category)}</td>
 						<td>
 							<div class="stack">
-								<span class="strong">${escapeHtml(r.openerName)}</span>
-								<span class="muted">ID: ${escapeHtml(r.openerId || '--')}</span>
+								<span class="strong opener-name">${escapeHtml(r.openerName)}</span>
+								<span class="muted opener-id">ID: ${escapeHtml(r.openerId || '--')}</span>
 							</div>
 						</td>
 						<td>${formatDate(r.createdAt)}</td>
