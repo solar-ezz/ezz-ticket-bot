@@ -103,9 +103,16 @@
 						<img class="avatar" src="{{ avatar }}" alt="avatar">
 						<div>
 							<header>
-								<span class="author">{{ author }}</span>
-								<span class="time">{{ timestamp }}</span>
-								<span class="msg-number">#{{ number }}</span>
+								<div class="header-left">
+									<span class="author">{{{ authorHtml }}}</span>
+									{{#authorId}}<button class="copy-id" data-user-id="{{ authorId }}" title="Copy user ID">Copy ID</button>{{/authorId}}
+									{{#deleted}}<span class="badge pill deleted" title="Message was deleted">{{ deletedLabel }}</span>{{/deleted}}
+									{{#edited}}<span class="badge pill edited" title="Message was edited">{{ editedLabel }}</span>{{/edited}}
+								</div>
+								<div class="header-right">
+									<span class="time">{{ timestamp }}</span>
+									<span class="msg-number">#{{ number }}</span>
+								</div>
 							</header>
 							<div class="body">{{{ contentHtml }}}</div>
 						</div>

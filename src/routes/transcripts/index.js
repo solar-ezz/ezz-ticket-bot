@@ -6,6 +6,25 @@ const icons = {
 	download: '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12.586l3.293-3.293 1.414 1.414L12 19.414l-4.707-4.707 1.414-1.414L11 15.586V3h2z"/><path d="M5 19h14v2H5z"/></svg>',
 };
 
+const escapeHtml = value => String(value ?? '')
+	.replace(/&/g, '&amp;')
+	.replace(/</g, '&lt;')
+	.replace(/>/g, '&gt;')
+	.replace(/"/g, '&quot;')
+	.replace(/'/g, '&#39;');
+
+const parseDateInput = input => {
+	if (!input) return null;
+	const dt = new Date(input);
+	return Number.isNaN(dt.getTime()) ? null : dt;
+};
+
+const endOfDay = date => {
+	const d = new Date(date);
+	d.setHours(23, 59, 59, 999);
+	return d;
+};
+
 module.exports.get = () => ({
 	path: '/transcripts',
 	handler: async (req, res) => {
@@ -18,12 +37,59 @@ module.exports.get = () => ({
 			return res.redirect(`/auth/login?r=${redirect}`);
 		}
 
+		const filters = {
+			ticket: (req.query.ticket || '').trim(),
+			opener: (req.query.opener || '').trim(),
+			category: (req.query.category || '').trim(),
+			createdFrom: (req.query.createdFrom || '').trim(),
+			createdTo: (req.query.createdTo || '').trim(),
+		};
+
 		const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
 		const skip = (page - 1) * perPage;
 
-		const total = await client.prisma.ticket.count({
-			where: { closedAt: { not: null } },
-		});
+		const where = { closedAt: { not: null } };
+
+		const createdAt = {};
+		const createdFrom = parseDateInput(filters.createdFrom);
+		const createdTo = parseDateInput(filters.createdTo);
+		if (createdFrom) createdAt.gte = createdFrom;
+		if (createdTo) createdAt.lte = endOfDay(createdTo);
+		if (Object.keys(createdAt).length) where.createdAt = createdAt;
+
+		if (filters.category) {
+			const categoryId = parseInt(filters.category, 10);
+			if (!Number.isNaN(categoryId)) {
+				where.categoryId = categoryId;
+			} else {
+				where.category = { name: { contains: filters.category, mode: 'insensitive' } };
+			}
+		}
+
+		if (filters.opener) {
+			if (/^\d{5,20}$/.test(filters.opener)) {
+				where.createdById = filters.opener;
+			} else {
+				where.createdBy = {
+					OR: [
+						{ username: { contains: filters.opener, mode: 'insensitive' } },
+						{ displayName: { contains: filters.opener, mode: 'insensitive' } },
+					],
+				};
+			}
+		}
+
+		const ticketSearch = filters.ticket.replace(/^#/, '');
+		if (ticketSearch) {
+			const numeric = parseInt(ticketSearch, 10);
+			if (!Number.isNaN(numeric) && ticketSearch.length <= 8) {
+				where.number = numeric;
+			} else {
+				where.id = ticketSearch;
+			}
+		}
+
+		const total = await client.prisma.ticket.count({ where });
 
 		const avatarUrl = user.avatar && user.avatar.startsWith('http')
 			? user.avatar
@@ -32,21 +98,22 @@ module.exports.get = () => ({
 				: 'https://cdn.discordapp.com/embed/avatars/0.png';
 
 		const tickets = await client.prisma.ticket.findMany({
-			include: { category: true, guild: true },
+			include: { category: true, guild: true, createdBy: true },
 			orderBy: { closedAt: 'desc' },
 			skip,
 			take: perPage * 10,
-			where: { closedAt: { not: null } },
+			where,
 		});
 
 		const rows = [];
 		for (const ticket of tickets) {
-			// eslint-disable-next-line no-await-in-loop
 			if (!await hasTranscriptAccess(client, ticket, user.id)) continue;
 			const urls = buildTranscriptUrls(ticket.id);
 			rows.push({
 				id: ticket.id,
 				number: ticket.number,
+				openerName: ticket.createdBy?.displayName || ticket.createdBy?.username || ticket.createdById || 'Unknown',
+				openerId: ticket.createdById,
 				category: ticket.category?.name || 'Unknown',
 				guild: ticket.guild?.name || ticket.guildId,
 				createdAt: ticket.createdAt,
@@ -61,9 +128,32 @@ module.exports.get = () => ({
 		const formatDate = date => date ? new Intl.DateTimeFormat(['en-GB'], {
 			dateStyle: 'medium',
 			timeStyle: 'short',
-		}).format(date) : '—';
+		}).format(date) : '--';
 
-		const pageLink = target => `/transcripts?page=${target}`;
+		const pageLink = target => {
+			const params = new URLSearchParams();
+			params.set('page', target);
+			Object.entries(filters).forEach(([key, value]) => {
+				if (value) params.set(key, value);
+			});
+			return `/transcripts?${params.toString()}`;
+		};
+
+		const rowsHtml = rows.map(r => `<tr>
+						<td><span class="badge">${escapeHtml(r.id)}</span></td>
+						<td>${r.number ?? '--'}</td>
+						<td>${escapeHtml(r.guild)}</td>
+						<td>${escapeHtml(r.category)}</td>
+						<td>
+							<div class="stack">
+								<span class="strong">${escapeHtml(r.openerName)}</span>
+								<span class="muted">ID: ${escapeHtml(r.openerId || '--')}</span>
+							</div>
+						</td>
+						<td>${formatDate(r.createdAt)}</td>
+						<td>${formatDate(r.closedAt)}</td>
+						<td class="meta"><a href="${r.viewUrl}">${icons.view} View</a><a href="${r.downloadUrl}">${icons.download} MD</a></td>
+					</tr>`).join('') || '<tr><td colspan="8">No transcripts match your filters.</td></tr>';
 
 		const html = `<!DOCTYPE html>
 <html lang="en">
@@ -94,6 +184,17 @@ module.exports.get = () => ({
 		nav.pagination span { color:var(--muted); font-size:13px; }
 		.card { background: var(--panel2); padding: 12px 14px; border:1px solid var(--border); border-radius:10px; color: var(--muted); font-size:13px; }
 		.btn-login { padding:7px 11px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); color:var(--text); text-decoration:none; }
+		.filters { margin: 16px 0 18px; padding: 14px; border-radius:12px; border:1px solid var(--border); background:var(--panel2); display:flex; flex-direction:column; gap:12px; }
+		.filters .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
+		.filters label { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:13px; }
+		.filters input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); }
+		.filters .range { display:flex; gap:8px; align-items:center; }
+		.filters .actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+		.filters button { padding:9px 14px; border:none; border-radius:10px; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; }
+		.filters a.ghost { padding:9px 14px; border-radius:10px; border:1px solid var(--border); color:var(--text); text-decoration:none; }
+		.stack { display:flex; flex-direction:column; gap:2px; }
+		.strong { font-weight:600; color:var(--text); }
+		.muted { color:var(--muted); font-size:12px; }
 	</style>
 </head>
 <body>
@@ -101,7 +202,7 @@ module.exports.get = () => ({
 	<header>
 			<div>
 				<h1>Transcripts</h1>
-				<div class="count">${rows.length} shown · page ${page} of ${pages}</div>
+				<div class="count">${rows.length} shown | page ${page} of ${pages} | ${total} matching</div>
 			</div>
 			<div class="meta">
 				${user ? `<img src="${avatarUrl}" alt="avatar" style="width:34px;height:34px;border-radius:50%;">` : ''}
@@ -109,6 +210,36 @@ module.exports.get = () => ({
 				<a href="/auth/login?r=/transcripts" class="btn-login">Login</a>
 			</div>
 		</header>
+		<form class="filters" method="get" action="/transcripts">
+			<div class="grid">
+				<label>
+					<span>Ticket ID or #</span>
+					<input type="text" name="ticket" inputmode="text" placeholder="1234 or 123456789012345678" value="${escapeHtml(filters.ticket)}">
+				</label>
+				<label>
+					<span>Opener username or ID</span>
+					<input type="text" name="opener" inputmode="text" placeholder="username or 123..." value="${escapeHtml(filters.opener)}">
+				</label>
+			</div>
+			<div class="grid">
+				<label>
+					<span>Category (name or ID)</span>
+					<input type="text" name="category" inputmode="text" placeholder="Billing or 4" value="${escapeHtml(filters.category)}">
+				</label>
+				<label>
+					<span>Created between</span>
+					<div class="range">
+						<input type="date" name="createdFrom" value="${escapeHtml(filters.createdFrom)}">
+						<span class="muted">to</span>
+						<input type="date" name="createdTo" value="${escapeHtml(filters.createdTo)}">
+					</div>
+				</label>
+			</div>
+			<div class="actions">
+				<button type="submit">Search</button>
+				<a class="ghost" href="/transcripts">Clear</a>
+			</div>
+		</form>
 		<div class="table-shell">
 			<table>
 				<thead>
@@ -117,21 +248,14 @@ module.exports.get = () => ({
 						<th>#</th>
 						<th>Guild</th>
 						<th>Category</th>
+						<th>Opened by</th>
 						<th>Created</th>
 						<th>Closed</th>
 						<th>Links</th>
 					</tr>
 				</thead>
 				<tbody>
-					${rows.map(r => `<tr>
-						<td><span class="badge">${r.id}</span></td>
-						<td>${r.number ?? '—'}</td>
-						<td>${r.guild}</td>
-						<td>${r.category}</td>
-						<td>${formatDate(r.createdAt)}</td>
-						<td>${formatDate(r.closedAt)}</td>
-						<td class="meta"><a href="${r.viewUrl}">${icons.view} View</a><a href="${r.downloadUrl}">${icons.download} MD</a></td>
-					</tr>`).join('') || '<tr><td colspan="7">No transcripts available.</td></tr>'}
+					${rowsHtml}
 				</tbody>
 			</table>
 		</div>

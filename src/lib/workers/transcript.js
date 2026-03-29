@@ -21,7 +21,20 @@ function getTranscript(ticket) {
 		message.content = JSON.parse(decrypt(message.content));
 		message.text = message.content.content?.replace(/\n/g, '\n\t') ?? '';
 		message.content.attachments?.forEach(a => (message.text += '\n\t' + a.url));
-		message.content.embeds?.forEach(() => (message.text += '\n\t[embedded content]'));
+		message.content.embeds?.forEach(embed => {
+			if (embed.title) message.text += '\n\t' + embed.title;
+			if (embed.description) message.text += '\n\t' + embed.description.replace(/\n/g, '\n\t');
+			if (Array.isArray(embed.fields)) {
+				embed.fields.forEach(field => {
+					if (field?.name) message.text += '\n\t' + field.name + ': ' + (field.value ?? '');
+				});
+			}
+			if (embed.footer?.text) message.text += '\n\t' + embed.footer.text;
+			if (embed.author?.name) message.text += '\n\t' + embed.author.name;
+			if (embed.url) message.text += '\n\t' + embed.url;
+			if (embed.image?.url) message.text += '\n\t' + embed.image.url;
+			if (!embed.image?.url && embed.thumbnail?.url) message.text += '\n\t' + embed.thumbnail.url;
+		});
 		message.number = 'M' + String(i + 1).padStart(ticket.archivedMessages.length.toString().length, '0');
 		ticket.archivedMessages[i] = message;
 	});

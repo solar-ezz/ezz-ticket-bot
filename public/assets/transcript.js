@@ -33,5 +33,15 @@
 			});
 		});
 	}
-})();
 
+	document.querySelectorAll('.copy-id').forEach(btn => {
+		btn.addEventListener('click', async () => {
+			const id = btn.dataset.userId;
+			if (!id || !navigator.clipboard) return;
+			await navigator.clipboard.writeText(id);
+			const original = btn.textContent;
+			btn.textContent = 'Copied';
+			setTimeout(() => { btn.textContent = original; }, 1200);
+		});
+	});
+})();

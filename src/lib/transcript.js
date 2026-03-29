@@ -22,7 +22,9 @@ const BASE_TRANSCRIPT_INCLUDE = {
 		where: { external: false },
 	},
 	archivedRoles: true,
-	archivedUsers: true,
+	archivedUsers: {
+		include: { role: true },
+	},
 	category: true,
 	claimedBy: true,
 	closedBy: true,
@@ -39,16 +41,100 @@ const escapeHtml = text => (text ?? '')
 	.replace(/"/g, '&quot;')
 	.replace(/'/g, '&#39;');
 
+const isImageUrl = url => {
+	const clean = (url || '').split('?')[0].toLowerCase();
+	return /\.(png|jpe?g|gif|webp|bmp|apng)$/i.test(clean);
+};
+
+const isVideoUrl = url => {
+	const clean = (url || '').split('?')[0].toLowerCase();
+	return /\.(mp4|webm|mov|m4v|gifv)$/i.test(clean);
+};
+
+const asEmbeddable = rawUrl => {
+	if (!rawUrl) return null;
+	let url;
+	try {
+		url = new URL(rawUrl);
+	} catch {
+		return null;
+	}
+	const host = url.hostname.toLowerCase();
+
+	if (host.includes('tenor.com')) {
+		const match = rawUrl.match(/tenor\.com\/view\/[^/]*-([0-9]+)/i);
+		if (match?.[1]) {
+			const id = match[1];
+			return `<iframe src="https://tenor.com/embed/${id}" class="inline-media iframe-media" frameborder="0" allowtransparency="true" scrolling="no"></iframe>`;
+		}
+	}
+
+	if (host.includes('giphy.com')) {
+		const match = rawUrl.match(/giphy\.com\/gifs\/[^/]*-([A-Za-z0-9]+)/i);
+		if (match?.[1]) {
+			const id = match[1];
+			return `<iframe src="https://giphy.com/embed/${id}" class="inline-media iframe-media" frameborder="0" allow="fullscreen"></iframe>`;
+		}
+	}
+
+	if (host.includes('imgur.com') && rawUrl.toLowerCase().endsWith('.gifv')) {
+		const mp4 = rawUrl.replace(/\.gifv$/i, '.mp4');
+		return `<video src="${escapeHtml(mp4)}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+	}
+
+	return null;
+};
+
 const linkify = text => text
 	.split(urlRegex)
 	.map((segment, index) => {
 		if (index % 2 === 1) {
 			const safe = escapeHtml(segment);
+			if (isImageUrl(segment)) {
+				return `<img src="${safe}" alt="image attachment" class="inline-media">`;
+			}
+			if (isVideoUrl(segment)) {
+				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+			}
+			const embed = asEmbeddable(segment);
+			if (embed) return embed;
 			return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 		}
 		return escapeHtml(segment);
 	})
 	.join('');
+
+const renderEmbed = embed => {
+	if (!embed) return '';
+	const title = embed.title ? `<div class="embed-title">${escapeHtml(embed.title)}</div>` : '';
+	const description = embed.description
+		? `<div class="embed-description">${linkify(embed.description).replace(/\n/g, '<br>')}</div>`
+		: '';
+	const fields = Array.isArray(embed.fields) && embed.fields.length
+		? `<div class="embed-fields">${embed.fields.map(field => `
+				<div class="embed-field">
+					<div class="embed-field-name">${escapeHtml(field?.name || '')}</div>
+					<div class="embed-field-value">${linkify(field?.value || '').replace(/\n/g, '<br>')}</div>
+				</div>`).join('')}</div>`
+		: '';
+	const footer = embed.footer?.text ? `<div class="embed-footer">${escapeHtml(embed.footer.text)}</div>` : '';
+	const author = embed.author?.name ? `<div class="embed-author">${escapeHtml(embed.author.name)}</div>` : '';
+	const mediaUrl = embed.image?.url || embed.thumbnail?.url || null;
+	const media = mediaUrl ? `<img src="${escapeHtml(mediaUrl)}" alt="embed media" class="inline-media">` : '';
+	const rawJson = `<pre class="embed-json">${escapeHtml(JSON.stringify(embed, null, 2))}</pre>`;
+	if (!title && !description && !fields && !footer && !author && !media) {
+		return `<div class="embed-card">${rawJson}</div>`;
+	}
+	return `<div class="embed-card">
+		${author}
+		${title}
+		${description}
+		${fields}
+		${media}
+		${footer || ''}
+		${rawJson}
+	</div>`;
+};
 
 const resolveAvatar = author => {
 	if (!author) return DEFAULT_AVATAR;
@@ -128,6 +214,17 @@ const buildChannelName = ticket => {
 		.replace(/{+\s?num(ber)?\s?}+/gi, ticket.number);
 };
 
+const normalizeHex = input => {
+	if (!input) return null;
+	const hex = input.replace('#', '');
+	if (/^[0-9a-fA-F]{6}$/.test(hex)) return `#${hex.toLowerCase()}`;
+	if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+		const expanded = hex.split('').map(c => c + c).join('');
+		return `#${expanded.toLowerCase()}`;
+	}
+	return null;
+};
+
 async function fetchTranscriptTicket(client, ticketId, guildId) {
 	return await client.prisma.ticket.findUnique({
 		include: BASE_TRANSCRIPT_INCLUDE,
@@ -159,16 +256,73 @@ async function buildTranscriptViewModel(client, ticket) {
 
 	const messagesHtml = hydrated.archivedMessages.map(message => {
 		const authorName = message.author?.displayName || message.author?.username || message.authorId || 'Unknown author';
+		const roleName = message.author?.role?.name;
+		const roleColor = normalizeHex(message.author?.role?.colour);
 		const content = message.text ?? '';
-		const contentHtml = linkify(content)
+		let contentHtml = linkify(content)
 			.replace(/\n/g, '<br>')
-			.replace(/\t/g, '&nbsp;&nbsp;') || '<span class="muted">[no content]</span>';
+			.replace(/\t/g, '&nbsp;&nbsp;');
+
+		const attachmentBlocks = (message.content?.attachments || [])
+			.map(att => {
+				const url = escapeHtml(att.url || '');
+				if (!url) return '';
+				if (isImageUrl(att.url)) {
+					return `<img src="${url}" alt="attachment" class="inline-media">`;
+				}
+				if (isVideoUrl(att.url)) {
+					return `<video src="${url}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+				}
+				return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+			})
+			.filter(Boolean);
+
+		const embedsRaw = (() => {
+			if (Array.isArray(message.content?.embeds)) return message.content.embeds;
+			if (message.content?.embeds) return [message.content.embeds];
+			return [];
+		})();
+
+		let embedCards = embedsRaw
+			.map(renderEmbed)
+			.filter(Boolean);
+		if (!embedCards.length && embedsRaw.length > 0) {
+			const rawDump = escapeHtml(JSON.stringify(embedsRaw, null, 2));
+			embedCards = [`<div class="embed-card muted"><pre class="embed-json">${rawDump}</pre></div>`];
+		}
+
+		const hasEmbeds = embedsRaw.length > 0;
+		const hasAttachments = attachmentBlocks.length > 0;
+		const hasText = (content && content.trim().length > 0);
+		if (!hasText && !hasEmbeds && !hasAttachments) {
+			contentHtml = '<span class="muted">[no content, likely embedded message]</span>';
+		} else {
+			contentHtml ||= '';
+			if (hasAttachments) contentHtml += `<div class="embed-media">${attachmentBlocks.join('')}</div>`;
+			if (hasEmbeds) contentHtml += `<div class="embed-media">${embedCards.join('')}</div>`;
+		}
+
 		return {
 			avatar: escapeHtml(resolveAvatar(message.author)),
 			author: escapeHtml(authorName),
+			authorHtml: (() => {
+				const nameStyle = roleColor
+					? `style="color:${roleColor};--role-color:${roleColor};"`
+					: '';
+				const name = `<span class="author-name" ${nameStyle}>${escapeHtml(authorName)}</span>`;
+				const role = roleName
+					? `<span class="role-pill" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
+					: '';
+				return name + (role ? ` ${role}` : '');
+			})(),
+			authorId: escapeHtml(message.authorId || ''),
 			contentHtml,
 			number: message.number,
 			timestamp: short.format(message.createdAt),
+			edited: Boolean(message.edited),
+			deleted: Boolean(message.deleted),
+			editedLabel: 'Edited',
+			deletedLabel: 'Deleted',
 		};
 	});
 
