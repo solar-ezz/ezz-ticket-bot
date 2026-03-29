@@ -1294,7 +1294,7 @@ module.exports = class TicketManager {
 		const channel = this.client.channels.cache.get(ticketId);
 		if (channel) {
 			const pinned = await channel.messages.fetchPins();
-			data.pinnedMessageIds = [...pinned.keys()];
+			data.pinnedMessageIds = pinned.items.map(i => i.message.id);
 		}
 
 		try {
