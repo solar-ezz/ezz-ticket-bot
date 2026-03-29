@@ -142,11 +142,7 @@ const renderEmbed = (embed, seenMedia) => {
 	if (mediaUrl) {
 		const safeMedia = escapeHtml(mediaUrl);
 		if (!seenMedia.has(safeMedia)) {
-			if (isVideoUrl(mediaUrl) || data.type === 'video' || data.type === 'gifv') {
-				media = `<video src="${safeMedia}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-			} else {
-				media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
-			}
+			media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
 			seenMedia.add(safeMedia);
 		}
 		mediaCandidates.filter(Boolean).forEach(url => seenMedia.add(escapeHtml(url)));
@@ -356,9 +352,12 @@ async function buildTranscriptViewModel(client, ticket) {
 					: '';
 				const name = `<span class="author-name" ${nameStyle}>${escapeHtml(authorName)}</span>`;
 				const role = roleName
-					? `<span class="role-pill" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
+					? `<span class="role-pill circle" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
 					: '';
-				return name + (role ? ` ${role}` : '');
+				const copy = message.authorId
+					? `<span class="role-pill circle copy-id-pill" data-user-id="${escapeHtml(message.authorId)}">ID</span>`
+					: '';
+				return [name, role, copy].filter(Boolean).join(' ');
 			})(),
 			authorId: escapeHtml(message.authorId || ''),
 			contentHtml,

@@ -329,6 +329,27 @@ hr {
     border-color: #fdd663;
 }
 
+.role-pill.circle {
+    border-radius: 50px;
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.05);
+}
+
+.copy-id-pill {
+    cursor: pointer;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.copy-id-pill:hover {
+    background: rgba(108,123,255,0.12);
+}
+
+.copy-id-pill.copied {
+    background: var(--accent);
+    color: #fff;
+}
+
 .chat-msg .body {
     color: #dfe1e6;
     margin-top: 2px;
@@ -337,9 +358,9 @@ hr {
 }
 
 .chat-msg .body img.inline-media {
-    max-width: 540px;
+    max-width: 420px;
     width: auto;
-    max-height: 360px;
+    max-height: 320px;
     height: auto;
     display: block;
     margin: 8px 0 4px;
@@ -350,9 +371,9 @@ hr {
 
 .chat-msg .body video.inline-media,
 .chat-msg .body iframe.inline-media {
-    max-width: 540px;
+    max-width: 420px;
     width: 100%;
-    max-height: 360px;
+    max-height: 320px;
     height: auto;
     display: block;
     margin: 8px 0 4px;

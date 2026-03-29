@@ -34,14 +34,13 @@
 		});
 	}
 
-	document.querySelectorAll('.copy-id').forEach(btn => {
+	document.querySelectorAll('.copy-id-pill').forEach(btn => {
 		btn.addEventListener('click', async () => {
 			const id = btn.dataset.userId;
 			if (!id || !navigator.clipboard) return;
 			await navigator.clipboard.writeText(id);
-			const original = btn.textContent;
-			btn.textContent = 'Copied';
-			setTimeout(() => { btn.textContent = original; }, 1200);
+			btn.classList.add('copied');
+			setTimeout(() => btn.classList.remove('copied'), 1200);
 		});
 	});
 })();
