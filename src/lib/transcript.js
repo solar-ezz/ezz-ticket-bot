@@ -116,26 +116,27 @@ const renderEmbed = (embed, seenMedia) => {
 	const data = embed.data || embed;
 	const title = data.title ? `<div class="embed-title">${escapeHtml(data.title)}</div>` : '';
 	const description = data.description
-		? `<div class="embed-description">${linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>')}</div>`
+		? `<div class="embed-description">${linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div>`
 		: '';
 	const fields = Array.isArray(data.fields) && data.fields.length
 		? `<div class="embed-fields">${data.fields.map(field => `
 				<div class="embed-field">
 					<div class="embed-field-name">${escapeHtml(field?.name || '')}</div>
-					<div class="embed-field-value">${linkifyWithSeen(field?.value || '', seenMedia).replace(/\n/g, '<br>')}</div>
+					<div class="embed-field-value">${linkifyWithSeen(field?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div>
 				</div>`).join('')}</div>`
 		: '';
 	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
 	const author = data.author?.name ? `<div class="embed-author">${escapeHtml(data.author.name)}</div>` : '';
 
-	const mediaUrl =
-		data.video?.url ||
-		data.image?.url ||
-		data.thumbnail?.url ||
-		data.url ||
-		embed.image?.url ||
-		embed.thumbnail?.url ||
-		null;
+	const mediaCandidates = [
+		data.thumbnail?.url,
+		data.image?.url,
+		data.video?.url,
+		embed.thumbnail?.url,
+		embed.image?.url,
+		data.url,
+	];
+	const mediaUrl = mediaCandidates.find(Boolean) || null;
 
 	let media = '';
 	if (mediaUrl) {
@@ -148,6 +149,7 @@ const renderEmbed = (embed, seenMedia) => {
 			}
 			seenMedia.add(safeMedia);
 		}
+		mediaCandidates.filter(Boolean).forEach(url => seenMedia.add(escapeHtml(url)));
 	}
 
 	if (!title && !description && !fields && !footer && !author && !media) {

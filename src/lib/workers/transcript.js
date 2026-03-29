@@ -21,19 +21,6 @@ function getTranscript(ticket) {
 		message.author = ticket.archivedUsers.find(u => u.userId === message.authorId);
 		message.content = JSON.parse(decrypt(message.content));
 		message.text = message.content.content?.replace(/\n/g, '\n\t') ?? '';
-		message.content.attachments?.forEach(a => (message.text += '\n\t' + a.url));
-		message.content.embeds?.forEach(embed => {
-			if (embed.title) message.text += '\n\t' + embed.title;
-			if (embed.description) message.text += '\n\t' + embed.description.replace(/\n/g, '\n\t');
-			if (Array.isArray(embed.fields)) {
-				embed.fields.forEach(field => {
-					if (field?.name) message.text += '\n\t' + field.name + ': ' + (field.value ?? '');
-				});
-			}
-			if (embed.footer?.text) message.text += '\n\t' + embed.footer.text;
-			if (embed.author?.name) message.text += '\n\t' + embed.author.name;
-			if (embed.url) message.text += '\n\t' + embed.url;
-		});
 		message.number = 'M' + String(i + 1).padStart(ticket.archivedMessages.length.toString().length, '0');
 		ticket.archivedMessages[i] = message;
 	});
