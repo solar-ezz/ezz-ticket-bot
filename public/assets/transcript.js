@@ -10,6 +10,35 @@
 	// Removes the large inline-media video/image when a smaller embed version
 	// of the same media already exists in the same message.
 	function removeDuplicateMedia() {
+		// Collect every URL referenced by a media element:
+		// checks both the direct `src` attribute AND every <source> child.
+		function getAllSrcs(el) {
+			const srcs = new Set();
+			const direct = el.getAttribute('src');
+			if (direct) srcs.add(direct.split('?')[0]);
+			el.querySelectorAll('source[src]').forEach(s => {
+				const src = s.getAttribute('src');
+				if (src) srcs.add(src.split('?')[0]);
+			});
+			return srcs;
+		}
+
+		// Strip path + extension → just the bare filename for fuzzy matching.
+		// Handles CDNs that use different hashes per format (e.g. Tenor AAAPo vs AAAPs).
+		function toFilename(url) {
+			return url.split('/').pop().replace(/\.[^/.]+$/, '').toLowerCase();
+		}
+
+		// Two src-sets overlap if any URL matches exactly, OR any filename matches.
+		function srcSetsOverlap(aSet, bSet) {
+			for (const a of aSet) {
+				if (bSet.has(a)) return true;
+				const af = toFilename(a);
+				if (af) for (const b of bSet) if (af === toFilename(b)) return true;
+			}
+			return false;
+		}
+
 		document.querySelectorAll('.chat-msg').forEach(msg => {
 			const body = msg.querySelector('.body');
 			if (!body) return;
@@ -19,15 +48,9 @@
 			const embedVids  = Array.from(body.querySelectorAll('video:not(.inline-media)'));
 
 			inlineVids.forEach(iv => {
-				// Grab the src from the element or its first <source> child
-				const getSrc = el => (el.getAttribute('src') || el.querySelector('source')?.getAttribute('src') || '');
-				const ivBase = getSrc(iv).split('?')[0].replace(/\.[^/.]+$/, ''); // strip query + extension
-
-				const isDupe = embedVids.some(ev => {
-					const evBase = getSrc(ev).split('?')[0].replace(/\.[^/.]+$/, '');
-					return ivBase && evBase && ivBase === evBase;
-				});
-
+				const ivSrcs = getAllSrcs(iv);
+				if (!ivSrcs.size) return;
+				const isDupe = embedVids.some(ev => srcSetsOverlap(ivSrcs, getAllSrcs(ev)));
 				if (isDupe) iv.remove();
 			});
 
@@ -37,7 +60,11 @@
 
 			inlineImgs.forEach(ii => {
 				const iiSrc = ii.getAttribute('src')?.split('?')[0] || '';
-				const isDupe = embedImgs.some(ei => (ei.getAttribute('src')?.split('?')[0] || '') === iiSrc);
+				if (!iiSrc) return;
+				const isDupe = embedImgs.some(ei => {
+					const eiSrc = ei.getAttribute('src')?.split('?')[0] || '';
+					return eiSrc === iiSrc || toFilename(iiSrc) === toFilename(eiSrc);
+				});
 				if (isDupe) ii.remove();
 			});
 		});

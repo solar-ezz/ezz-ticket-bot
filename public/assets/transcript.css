@@ -244,17 +244,21 @@ hr {
 
 .chat-msg header {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 8px;
     font-size: 14px;
+    flex-wrap: wrap;
 }
 
 .chat-msg .header-left {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 6px;
     flex-wrap: wrap;
+    /* Must have min-width:0 + flex:1 so it shrinks instead of overflowing */
+    flex: 1;
+    min-width: 0;
 }
 
 .chat-msg .header-right {
@@ -266,15 +270,17 @@ hr {
 
 .author {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 6px;
     flex-wrap: wrap;
+    min-width: 0;
 }
 
 .author-name {
     font-weight: 700;
     font-size: 14px;
     color: var(--text);
+    white-space: nowrap;
 }
 
 .role-label {
