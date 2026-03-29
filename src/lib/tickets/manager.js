@@ -444,6 +444,14 @@ module.exports = class TicketManager {
 			.replace(/{+\s?num(ber)?\s?}+/gi, number === 1488 ? '1487b' : number);
 		const allow = ['ViewChannel', 'ReadMessageHistory', 'SendMessages', 'EmbedLinks', 'AttachFiles'];
 		/** @type {import("discord.js").TextChannel} */
+		const staffRoleOverwrites = [];
+		for (const roleId of category.staffRoles) {
+			const role = guild.roles.cache.get(roleId) ?? await guild.roles.fetch(roleId).catch(() => null);
+			if (role) {
+				staffRoleOverwrites.push({ allow, id: role.id, type: 0 });
+			}
+		}
+
 		const channel = await guild.channels.create({
 			name: channelName,
 			parent: category.discordCategory,
@@ -451,19 +459,19 @@ module.exports = class TicketManager {
 				{
 					deny: ['ViewChannel'],
 					id: guild.roles.everyone.id,
+					type: 0,
 				},
 				{
 					allow,
 					id: this.client.user.id,
+					type: 0,
 				},
 				{
 					allow,
 					id: creator.id,
+					type: 1,
 				},
-				...category.staffRoles.map(id => ({
-					allow,
-					id,
-				})),
+				...staffRoleOverwrites,
 			],
 			rateLimitPerUser: category.ratelimit,
 			reason: `${creator.user.tag} created a ticket`,
@@ -1285,8 +1293,8 @@ module.exports = class TicketManager {
 		/** @type {import("discord.js").TextChannel} */
 		const channel = this.client.channels.cache.get(ticketId);
 		if (channel) {
-			const pinned = await channel.messages.fetchPinned();
-			data.pinnedMessageIds = [...pinned.keys()];
+			const pinned = await channel.messages.fetchPins();
+			data.pinnedMessageIds = pinned.items.map(i => i.message.id);
 		}
 
 		try {
@@ -1442,7 +1450,11 @@ module.exports = class TicketManager {
 				});
 			}
 		} catch (error) {
-			this.client.log.error(error);
+			if (error?.code === 50278) {
+				this.client.log.warn('Failed to DM ticket creator: no mutual guilds');
+			} else {
+				this.client.log.error(error);
+			}
 		}
 
 		const fieldsArray = [
