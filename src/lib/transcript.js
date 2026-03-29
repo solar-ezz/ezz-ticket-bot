@@ -85,38 +85,44 @@ const asEmbeddable = rawUrl => {
 	return null;
 };
 
-const linkify = text => text
+const linkifyWithSeen = (text, seen) => text
 	.split(urlRegex)
 	.map((segment, index) => {
 		if (index % 2 === 1) {
 			const safe = escapeHtml(segment);
+			if (seen.has(safe)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 			if (isImageUrl(segment)) {
+				seen.add(safe);
 				return `<img src="${safe}" alt="image attachment" class="inline-media">`;
 			}
 			if (isVideoUrl(segment)) {
+				seen.add(safe);
 				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
 			}
 			const embed = asEmbeddable(segment);
-			if (embed) return embed;
+			if (embed) {
+				seen.add(safe);
+				return embed;
+			}
 			return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 		}
 		return escapeHtml(segment);
 	})
 	.join('');
 
-const renderEmbed = embed => {
+const renderEmbed = (embed, seenMedia) => {
 	if (!embed) return '';
 
 	const data = embed.data || embed;
 	const title = data.title ? `<div class="embed-title">${escapeHtml(data.title)}</div>` : '';
 	const description = data.description
-		? `<div class="embed-description">${linkify(data.description).replace(/\n/g, '<br>')}</div>`
+		? `<div class="embed-description">${linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>')}</div>`
 		: '';
 	const fields = Array.isArray(data.fields) && data.fields.length
 		? `<div class="embed-fields">${data.fields.map(field => `
 				<div class="embed-field">
 					<div class="embed-field-name">${escapeHtml(field?.name || '')}</div>
-					<div class="embed-field-value">${linkify(field?.value || '').replace(/\n/g, '<br>')}</div>
+					<div class="embed-field-value">${linkifyWithSeen(field?.value || '', seenMedia).replace(/\n/g, '<br>')}</div>
 				</div>`).join('')}</div>`
 		: '';
 	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
@@ -133,10 +139,14 @@ const renderEmbed = embed => {
 
 	let media = '';
 	if (mediaUrl) {
-		if (isVideoUrl(mediaUrl) || data.type === 'video' || data.type === 'gifv') {
-			media = `<video src="${escapeHtml(mediaUrl)}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-		} else {
-			media = `<img src="${escapeHtml(mediaUrl)}" alt="embed media" class="inline-media">`;
+		const safeMedia = escapeHtml(mediaUrl);
+		if (!seenMedia.has(safeMedia)) {
+			if (isVideoUrl(mediaUrl) || data.type === 'video' || data.type === 'gifv') {
+				media = `<video src="${safeMedia}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+			} else {
+				media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
+			}
+			seenMedia.add(safeMedia);
 		}
 	}
 
@@ -278,14 +288,15 @@ async function buildTranscriptViewModel(client, ticket) {
 		const roleName = message.author?.role?.name;
 		const roleColor = normalizeHex(message.author?.role?.colour);
 		const content = message.text ?? '';
-		let contentHtml = linkify(content)
+		const seenMedia = new Set();
+		let contentHtml = linkifyWithSeen(content, seenMedia)
 			.replace(/\n/g, '<br>')
 			.replace(/\t/g, '&nbsp;&nbsp;');
 		contentHtml = contentHtml
 			.replace(/^(<br>|&nbsp;|\s)+/gi, '')
-			.replace(/(<br>\s*)+$/gi, '');
+			.replace(/(<br>\s*)+$/gi, '')
+			.replace(/(<br>\s*){2,}/gi, '<br>');
 
-		const seenMedia = new Set();
 		const attachmentBlocks = (message.content?.attachments || [])
 			.map(att => {
 				const primary = att.proxy_url || att.url;
@@ -293,6 +304,10 @@ async function buildTranscriptViewModel(client, ticket) {
 				if (!safe) return '';
 				if (seenMedia.has(safe)) return '';
 				seenMedia.add(safe);
+				if (att.url) {
+					const alt = escapeHtml(att.url);
+					seenMedia.add(alt);
+				}
 				const contentType = att.content_type || '';
 				const isImg = isImageUrl(primary) || contentType.startsWith('image/');
 				const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
@@ -313,10 +328,9 @@ async function buildTranscriptViewModel(client, ticket) {
 		})();
 
 		let embedCards = embedsRaw
-			.map(renderEmbed)
+			.map(embed => renderEmbed(embed, seenMedia))
 			.filter(Boolean);
 		if (!embedCards.length && embedsRaw.length > 0) {
-			const rawDump = escapeHtml(JSON.stringify(embedsRaw, null, 2));
 			embedCards = [`<div class="embed-card muted">[embed]</div>`];
 		}
 
