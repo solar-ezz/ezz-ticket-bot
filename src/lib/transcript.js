@@ -50,6 +50,20 @@ const mediaKey = url => {
 	return url.split(/[?#]/)[0].toLowerCase();
 };
 
+const mediaSig = url => {
+	if (!url) return '';
+	try {
+		const u = new URL(url);
+		const last = (u.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+		if (last) return last.split('.')[0];
+		return u.hostname.toLowerCase();
+	} catch {
+		const parts = url.split('/');
+		const last = (parts.pop() || '').toLowerCase();
+		return last.split('.')[0];
+	}
+};
+
 const renderEmojis = html => html.replace(
 	/&lt;(a?):([A-Za-z0-9_]+):(\d+)&gt;/g,
 	(_, animated, name, id) => {
@@ -69,14 +83,19 @@ const tenorIdOf = url => {
 const seenHasMedia = (seen, url) => {
 	if (!url) return false;
 	const key = mediaKey(url);
-	if (seen.has(key)) return true;
+	const sig = mediaSig(url);
 	const tid = tenorIdOf(url);
-	if (tid) {
-		for (const s of seen) {
-			if (tenorIdOf(s) === tid) return true;
-		}
-	}
-	return false;
+	return seen.has(key) || seen.has('sig:' + sig) || (tid && seen.has('tenor:' + tid));
+};
+
+const markMedia = (seen, url) => {
+	if (!url) return;
+	const key = mediaKey(url);
+	const sig = mediaSig(url);
+	if (key) seen.add(key);
+	if (sig) seen.add('sig:' + sig);
+	const tid = tenorIdOf(url);
+	if (tid) seen.add('tenor:' + tid);
 };
 
 const asEmbeddable = rawUrl => {
@@ -113,19 +132,18 @@ const linkifyWithSeen = (text, seen) => renderEmojis(
 		.map((segment, index) => {
 			if (index % 2 === 1) {
 				const safe = escapeHtml(segment);
-				const key = mediaKey(segment);
 				if (seenHasMedia(seen, segment)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 				if (isImageUrl(segment)) {
-					seen.add(key);
+					markMedia(seen, segment);
 					return `<img src="${safe}" alt="image attachment" class="inline-media">`;
 				}
 				if (isVideoUrl(segment)) {
-					seen.add(key);
+					markMedia(seen, segment);
 					return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
 				}
 				const embed = asEmbeddable(segment);
 				if (embed) {
-					seen.add(key);
+					markMedia(seen, segment);
 					return embed;
 				}
 				return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
@@ -156,19 +174,15 @@ const renderEmbed = (embed, seenMedia) => {
 
 	if (videoUrl && !seenHasMedia(seenMedia, videoUrl)) {
 		media = `<video src="${escapeHtml(videoUrl)}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-		seenMedia.add(mediaKey(videoUrl));
-		if (imageUrl) seenMedia.add(mediaKey(imageUrl));
-		const tid = tenorIdOf(videoUrl) || tenorIdOf(imageUrl || '');
-		if (tid) seenMedia.add('tenor:' + tid);
+		markMedia(seenMedia, videoUrl);
+		markMedia(seenMedia, imageUrl);
 	} else if (imageUrl && !seenHasMedia(seenMedia, imageUrl)) {
 		media = `<img src="${escapeHtml(imageUrl)}" alt="embed media" class="inline-media">`;
-		seenMedia.add(mediaKey(imageUrl));
-		if (videoUrl) seenMedia.add(mediaKey(videoUrl));
-		const tid = tenorIdOf(imageUrl) || tenorIdOf(videoUrl || '');
-		if (tid) seenMedia.add('tenor:' + tid);
+		markMedia(seenMedia, imageUrl);
+		markMedia(seenMedia, videoUrl);
 	} else {
-		if (videoUrl) seenMedia.add(mediaKey(videoUrl));
-		if (imageUrl) seenMedia.add(mediaKey(imageUrl));
+		markMedia(seenMedia, videoUrl);
+		markMedia(seenMedia, imageUrl);
 	}
 
 	if (!title && !description && !fields && !footer && !author && !media) return '';
@@ -298,8 +312,8 @@ async function buildTranscriptViewModel(client, ticket) {
 				const safe = escapeHtml(primary || '');
 				if (!safe) return '';
 				if (seenHasMedia(seenMedia, primary)) return '';
-				seenMedia.add(mediaKey(primary));
-				if (att.url) seenMedia.add(mediaKey(att.url));
+				markMedia(seenMedia, primary);
+				if (att.url) markMedia(seenMedia, att.url);
 				const contentType = att.content_type || '';
 				const isImg = isImageUrl(primary) || contentType.startsWith('image/');
 				const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
