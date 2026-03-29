@@ -5,7 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>{{ channelName }} | Discord Transcript</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-	<link rel="stylesheet" href="/assets/transcript.css">
+	<link rel="stylesheet" href="/assets/transcript.css?v={{ assetVersion }}">
 	<style>{{{ appCss }}}</style>
 </head>
 <body>
@@ -85,10 +85,6 @@
 					<i class="fa-solid fa-hashtag"></i>
 					<span>{{ channelName }}</span>
 				</div>
-				<div class="buttons">
-					<button class="active">Messages</button>
-					<button>Summary</button>
-				</div>
 			</div>
 			<div class="icons-end">
 				{{#downloadUrl}}<a class="btn-download" href="{{ downloadUrl }}"><i class="fa-solid fa-download"></i> MD</a>{{/downloadUrl}}
@@ -162,7 +158,7 @@
 	</div>
 </main>
 
-<script src="/assets/transcript.js"></script>
+<script src="/assets/transcript.js?v={{ assetVersion }}"></script>
 </body>
 </html>
 

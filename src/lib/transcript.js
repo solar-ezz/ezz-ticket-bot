@@ -235,6 +235,18 @@ const normalizeHex = input => {
 	return null;
 };
 
+let pkgVersion;
+const getAssetVersion = () => {
+	if (process.env.ASSET_VERSION) return process.env.ASSET_VERSION;
+	if (pkgVersion) return pkgVersion;
+	try {
+		pkgVersion = require('../../package.json').version;
+	} catch {
+		pkgVersion = String(Date.now());
+	}
+	return pkgVersion;
+};
+
 async function fetchTranscriptTicket(client, ticketId, guildId) {
 	return await client.prisma.ticket.findUnique({
 		include: BASE_TRANSCRIPT_INCLUDE,
@@ -338,6 +350,7 @@ async function buildTranscriptViewModel(client, ticket) {
 	const mdFileName = `${sanitizeFileName(channelName)}-${hydrated.id}.${mdExtension}`;
 
 	return {
+		assetVersion: getAssetVersion(),
 		channelName,
 		generatedAt: new Date().toISOString(),
 		guildName: client.guilds.cache.get(hydrated.guildId)?.name ?? hydrated.guild?.name ?? 'Unknown guild',

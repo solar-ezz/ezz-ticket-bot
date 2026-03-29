@@ -176,20 +176,6 @@ hr {
     gap: 8px;
 }
 
-.rightside-area nav .buttons button {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.rightside-area nav .buttons button.active,
-.rightside-area nav .buttons button:hover {
-    background: var(--panel-2);
-}
-
 .rightside-area nav .icons-end {
     display: flex;
     align-items: center;
