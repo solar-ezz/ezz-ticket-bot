@@ -339,18 +339,21 @@ hr {
 .chat-msg .body img.inline-media {
     max-width: 540px;
     width: auto;
+    max-height: 360px;
     height: auto;
     display: block;
     margin: 8px 0 4px;
     border-radius: 10px;
     border: 1px solid var(--border);
+    object-fit: contain;
 }
 
 .chat-msg .body video.inline-media,
 .chat-msg .body iframe.inline-media {
     max-width: 540px;
     width: 100%;
-    height: 320px;
+    max-height: 360px;
+    height: auto;
     display: block;
     margin: 8px 0 4px;
     border-radius: 10px;
@@ -389,6 +392,18 @@ hr {
     color: #cdd3e1;
     white-space: pre-wrap;
     word-break: break-word;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.embed-json-wrap summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.embed-json-wrap {
+    margin-top: 8px;
 }
 
 .embed-title {

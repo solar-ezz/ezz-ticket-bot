@@ -13,6 +13,7 @@ function getTranscript(ticket) {
 	ticket.archivedUsers.forEach((user, i) => {
 		if (user.displayName) user.displayName = decrypt(user.displayName);
 		user.username = decrypt(user.username);
+		if (user.avatar?.startsWith?.('http')) user.proxyAvatar = user.avatar;
 		ticket.archivedUsers[i] = user;
 	});
 

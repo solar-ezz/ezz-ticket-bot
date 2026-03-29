@@ -106,25 +106,46 @@ const linkify = text => text
 
 const renderEmbed = embed => {
 	if (!embed) return '';
-	const title = embed.title ? `<div class="embed-title">${escapeHtml(embed.title)}</div>` : '';
-	const description = embed.description
-		? `<div class="embed-description">${linkify(embed.description).replace(/\n/g, '<br>')}</div>`
+
+	const data = embed.data || embed;
+	const title = data.title ? `<div class="embed-title">${escapeHtml(data.title)}</div>` : '';
+	const description = data.description
+		? `<div class="embed-description">${linkify(data.description).replace(/\n/g, '<br>')}</div>`
 		: '';
-	const fields = Array.isArray(embed.fields) && embed.fields.length
-		? `<div class="embed-fields">${embed.fields.map(field => `
+	const fields = Array.isArray(data.fields) && data.fields.length
+		? `<div class="embed-fields">${data.fields.map(field => `
 				<div class="embed-field">
 					<div class="embed-field-name">${escapeHtml(field?.name || '')}</div>
 					<div class="embed-field-value">${linkify(field?.value || '').replace(/\n/g, '<br>')}</div>
 				</div>`).join('')}</div>`
 		: '';
-	const footer = embed.footer?.text ? `<div class="embed-footer">${escapeHtml(embed.footer.text)}</div>` : '';
-	const author = embed.author?.name ? `<div class="embed-author">${escapeHtml(embed.author.name)}</div>` : '';
-	const mediaUrl = embed.image?.url || embed.thumbnail?.url || null;
-	const media = mediaUrl ? `<img src="${escapeHtml(mediaUrl)}" alt="embed media" class="inline-media">` : '';
-	const rawJson = `<pre class="embed-json">${escapeHtml(JSON.stringify(embed, null, 2))}</pre>`;
+	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
+	const author = data.author?.name ? `<div class="embed-author">${escapeHtml(data.author.name)}</div>` : '';
+
+	const mediaUrl =
+		data.video?.url ||
+		data.image?.url ||
+		data.thumbnail?.url ||
+		data.url ||
+		embed.image?.url ||
+		embed.thumbnail?.url ||
+		null;
+
+	let media = '';
+	if (mediaUrl) {
+		if (isVideoUrl(mediaUrl) || data.type === 'video' || data.type === 'gifv') {
+			media = `<video src="${escapeHtml(mediaUrl)}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+		} else {
+			media = `<img src="${escapeHtml(mediaUrl)}" alt="embed media" class="inline-media">`;
+		}
+	}
+
+	const rawJson = `<details class="embed-json-wrap"><summary>Raw embed JSON</summary><pre class="embed-json">${escapeHtml(JSON.stringify(embed, null, 2))}</pre></details>`;
+
 	if (!title && !description && !fields && !footer && !author && !media) {
 		return `<div class="embed-card">${rawJson}</div>`;
 	}
+
 	return `<div class="embed-card">
 		${author}
 		${title}
@@ -142,6 +163,7 @@ const resolveAvatar = author => {
 	if (author.userId && author.avatar) {
 		return `https://cdn.discordapp.com/avatars/${author.userId}/${author.avatar}.png?size=512`;
 	}
+	if (author.proxyAvatar) return author.proxyAvatar;
 	return DEFAULT_AVATAR;
 };
 
@@ -263,19 +285,23 @@ async function buildTranscriptViewModel(client, ticket) {
 			.replace(/\n/g, '<br>')
 			.replace(/\t/g, '&nbsp;&nbsp;');
 
-		const attachmentBlocks = (message.content?.attachments || [])
-			.map(att => {
-				const url = escapeHtml(att.url || '');
-				if (!url) return '';
-				if (isImageUrl(att.url)) {
-					return `<img src="${url}" alt="attachment" class="inline-media">`;
-				}
-				if (isVideoUrl(att.url)) {
-					return `<video src="${url}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-				}
-				return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-			})
-			.filter(Boolean);
+	const attachmentBlocks = (message.content?.attachments || [])
+		.map(att => {
+			const primary = att.proxy_url || att.url;
+			const safe = escapeHtml(primary || '');
+			if (!safe) return '';
+			const contentType = att.content_type || '';
+			const isImg = isImageUrl(primary) || contentType.startsWith('image/');
+			const isVid = isVideoUrl(primary) || contentType.startsWith('video/');
+			if (isImg) {
+				return `<img src="${safe}" alt="attachment" class="inline-media">`;
+			}
+			if (isVid) {
+				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+			}
+			return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+		})
+		.filter(Boolean);
 
 		const embedsRaw = (() => {
 			if (Array.isArray(message.content?.embeds)) return message.content.embeds;
