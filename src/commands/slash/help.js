@@ -53,10 +53,10 @@ module.exports = class ClaimSlashCommand extends SlashCommand {
 					inline: true,
 					name: getMessage('commands.slash.help.response.links.links'),
 					value: [
-						['commands', 'https:
-						['docs', 'https:
-						['feedback', 'https:
-						['support', 'https:
+						['commands', 'https://discordtickets.app/features/commands'],
+						['docs', 'https://discordtickets.app'],
+						['feedback', 'https://lnk.earth/dsctickets-feedback'],
+						['support', 'https://lnk.earth/discord'],
 					]
 						.map(([l, url]) => `> [${getMessage('commands.slash.help.response.links.' + l)}](${url})`)
 						.join('\n'),

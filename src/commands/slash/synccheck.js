@@ -6,7 +6,7 @@ const { join, relative } = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 
-const REMOTE = 'https:
+const REMOTE = 'https://github.com/discord-tickets/bot.git';
 const IGNORE_TOP = new Set(['.git', 'node_modules', 'logs', 'tmp', 'user/transcripts']);
 
 async function execGit(args, cwd) {

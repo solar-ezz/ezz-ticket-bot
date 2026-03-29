@@ -14,7 +14,7 @@ module.exports = class extends Listener {
 		super(client, {
 			...options,
 			emitter: client,
-			event: 'ready',
+			event: 'clientReady',
 			once: true,
 		});
 	}
@@ -36,10 +36,13 @@ module.exports = class extends Listener {
 			client.log.info('Automatically publishing commands...');
 			const guildId = process.env.COMMAND_GUILD_ID;
 			const publisher = guildId
-				? client.commands.publishGuild(guildId)
+				? client.application.commands.set(
+					client.commands.components.map(c => c.toJSON()),
+					guildId,
+				)
 				: client.commands.publish();
 			publisher
-				.then(commands => client.log.success('Published %d commands%s', commands?.size, guildId ? ` to guild ${guildId}` : ''))
+				.then(commands => client.log.success('Published %d commands%s', commands?.size ?? commands?.length ?? 0, guildId ? ` to guild ${guildId}` : ''))
 				.catch(client.log.error);
 		}
 
