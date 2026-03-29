@@ -448,7 +448,7 @@ module.exports = class TicketManager {
 		for (const roleId of category.staffRoles) {
 			const role = guild.roles.cache.get(roleId) ?? await guild.roles.fetch(roleId).catch(() => null);
 			if (role) {
-				staffRoleOverwrites.push({ allow, id: role.id });
+				staffRoleOverwrites.push({ allow, id: role.id, type: 0 });
 			}
 		}
 
@@ -459,14 +459,17 @@ module.exports = class TicketManager {
 				{
 					deny: ['ViewChannel'],
 					id: guild.roles.everyone.id,
+					type: 0,
 				},
 				{
 					allow,
 					id: this.client.user.id,
+					type: 0,
 				},
 				{
 					allow,
 					id: creator.id,
+					type: 1,
 				},
 				...staffRoleOverwrites,
 			],
