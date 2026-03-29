@@ -50,6 +50,15 @@ const mediaKey = url => {
 	return url.split(/[?#]/)[0].toLowerCase();
 };
 
+const renderEmojis = html => html.replace(
+	/&lt;(a?):([A-Za-z0-9_]+):(\d+)&gt;/g,
+	(_, animated, name, id) => {
+		const ext = animated ? 'gif' : 'png';
+		const src = `https://cdn.discordapp.com/emojis/${id}.${ext}`;
+		return `<img src="${src}" alt=":${escapeHtml(name)}:" class="inline-emoji">`;
+	},
+);
+
 const tenorIdOf = url => {
 	if (!url) return null;
 	const m = url.match(/media\.tenor\.com\/([A-Za-z0-9_-]+)\//);
@@ -98,31 +107,33 @@ const asEmbeddable = rawUrl => {
 	return null;
 };
 
-const linkifyWithSeen = (text, seen) => text
-	.split(urlRegex)
-	.map((segment, index) => {
-		if (index % 2 === 1) {
-			const safe = escapeHtml(segment);
-			const key = mediaKey(segment);
-			if (seenHasMedia(seen, segment)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
-			if (isImageUrl(segment)) {
-				seen.add(key);
-				return `<img src="${safe}" alt="image attachment" class="inline-media">`;
+const linkifyWithSeen = (text, seen) => renderEmojis(
+	text
+		.split(urlRegex)
+		.map((segment, index) => {
+			if (index % 2 === 1) {
+				const safe = escapeHtml(segment);
+				const key = mediaKey(segment);
+				if (seenHasMedia(seen, segment)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+				if (isImageUrl(segment)) {
+					seen.add(key);
+					return `<img src="${safe}" alt="image attachment" class="inline-media">`;
+				}
+				if (isVideoUrl(segment)) {
+					seen.add(key);
+					return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+				}
+				const embed = asEmbeddable(segment);
+				if (embed) {
+					seen.add(key);
+					return embed;
+				}
+				return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 			}
-			if (isVideoUrl(segment)) {
-				seen.add(key);
-				return `<video src="${safe}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-			}
-			const embed = asEmbeddable(segment);
-			if (embed) {
-				seen.add(key);
-				return embed;
-			}
-			return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
-		}
-		return escapeHtml(segment);
-	})
-	.join('');
+			return escapeHtml(segment);
+		})
+		.join('')
+);
 
 const renderEmbed = (embed, seenMedia) => {
 	if (!embed) return '';
@@ -130,10 +141,10 @@ const renderEmbed = (embed, seenMedia) => {
 	const data = embed.data || embed;
 	const title = data.title ? `<div class="embed-title">${escapeHtml(data.title)}</div>` : '';
 	const description = data.description
-		? `<div class="embed-description">${linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div>`
+		? `<div class="embed-description">${renderEmojis(linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>'))}</div>`
 		: '';
 	const fields = Array.isArray(data.fields) && data.fields.length
-		? `<div class="embed-fields">${data.fields.map(f => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(f?.name || '')}</div><div class="embed-field-value">${linkifyWithSeen(f?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div></div>`).join('')}</div>`
+		? `<div class="embed-fields">${data.fields.map(f => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(f?.name || '')}</div><div class="embed-field-value">${renderEmojis(linkifyWithSeen(f?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>'))}</div></div>`).join('')}</div>`
 		: '';
 	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
 	const author = data.author?.name ? `<div class="embed-author">${escapeHtml(data.author.name)}</div>` : '';
@@ -279,6 +290,7 @@ async function buildTranscriptViewModel(client, ticket) {
 			.replace(/^(<br>|&nbsp;|\s)+/gi, '')
 			.replace(/(<br>\s*)+$/gi, '')
 			.replace(/(<br>\s*){2,}/gi, '<br>');
+		contentHtml = renderEmojis(contentHtml);
 
 		const attachmentBlocks = (message.content?.attachments || [])
 			.map(att => {
