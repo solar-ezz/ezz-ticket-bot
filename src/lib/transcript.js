@@ -41,29 +41,39 @@ const escapeHtml = text => (text ?? '')
 	.replace(/"/g, '&quot;')
 	.replace(/'/g, '&#39;');
 
-const isImageUrl = url => {
-	const clean = (url || '').split('?')[0].toLowerCase();
-	return /\.(png|jpe?g|gif|webp|bmp|apng)$/i.test(clean);
-};
+const isImageUrl = url => /\.(png|jpe?g|gif|webp|bmp|apng)$/i.test((url || '').split('?')[0]);
 
-const isVideoUrl = url => {
-	const clean = (url || '').split('?')[0].toLowerCase();
-	return /\.(mp4|webm|mov|m4v|gifv)$/i.test(clean);
-};
+const isVideoUrl = url => /\.(mp4|webm|mov|m4v|gifv)$/i.test((url || '').split('?')[0]);
 
 const mediaKey = url => {
 	if (!url) return '';
 	return url.split(/[?#]/)[0].toLowerCase();
 };
 
+const tenorIdOf = url => {
+	if (!url) return null;
+	const m = url.match(/media\.tenor\.com\/([A-Za-z0-9_-]+)\//);
+	if (m) return m[1];
+	return null;
+};
+
+const seenHasMedia = (seen, url) => {
+	if (!url) return false;
+	const key = mediaKey(url);
+	if (seen.has(key)) return true;
+	const tid = tenorIdOf(url);
+	if (tid) {
+		for (const s of seen) {
+			if (tenorIdOf(s) === tid) return true;
+		}
+	}
+	return false;
+};
+
 const asEmbeddable = rawUrl => {
 	if (!rawUrl) return null;
 	let url;
-	try {
-		url = new URL(rawUrl);
-	} catch {
-		return null;
-	}
+	try { url = new URL(rawUrl); } catch { return null; }
 	const host = url.hostname.toLowerCase();
 
 	if (host.includes('tenor.com')) {
@@ -94,7 +104,7 @@ const linkifyWithSeen = (text, seen) => text
 		if (index % 2 === 1) {
 			const safe = escapeHtml(segment);
 			const key = mediaKey(segment);
-			if (seen.has(key)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+			if (seenHasMedia(seen, segment)) return `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
 			if (isImageUrl(segment)) {
 				seen.add(key);
 				return `<img src="${safe}" alt="image attachment" class="inline-media">`;
@@ -123,39 +133,31 @@ const renderEmbed = (embed, seenMedia) => {
 		? `<div class="embed-description">${linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div>`
 		: '';
 	const fields = Array.isArray(data.fields) && data.fields.length
-		? `<div class="embed-fields">${data.fields.map(field => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(field?.name || '')}</div><div class="embed-field-value">${linkifyWithSeen(field?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div></div>`).join('')}</div>`
+		? `<div class="embed-fields">${data.fields.map(f => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(f?.name || '')}</div><div class="embed-field-value">${linkifyWithSeen(f?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>')}</div></div>`).join('')}</div>`
 		: '';
 	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
 	const author = data.author?.name ? `<div class="embed-author">${escapeHtml(data.author.name)}</div>` : '';
 
-	const mediaCandidates = [
-		data.thumbnail?.url,
-		data.image?.url,
-		data.video?.url,
-		embed.thumbnail?.url,
-		embed.image?.url,
-	].filter(Boolean);
-
-	const filenameOf = url => {
-		try { return new URL(url).pathname.split('/').pop().split('?')[0].toLowerCase(); } catch { return ''; }
-	};
+	const videoUrl = data.video?.url || null;
+	const imageUrl = data.image?.url || data.thumbnail?.url || embed.image?.url || embed.thumbnail?.url || null;
 
 	let media = '';
-	const mediaUrl = mediaCandidates[0] || null;
-	if (mediaUrl) {
-		const key = mediaKey(mediaUrl);
-		const fname = filenameOf(mediaUrl);
-		const alreadySeen = seenMedia.has(key) || (fname && [...seenMedia].some(s => filenameOf(s) === fname && fname !== ''));
-		if (!alreadySeen) {
-			const safeMedia = escapeHtml(mediaUrl);
-			if (isVideoUrl(mediaUrl)) {
-				media = `<video src="${safeMedia}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
-			} else {
-				media = `<img src="${safeMedia}" alt="embed media" class="inline-media">`;
-			}
-			seenMedia.add(key);
-		}
-		mediaCandidates.map(mediaKey).forEach(k => seenMedia.add(k));
+
+	if (videoUrl && !seenHasMedia(seenMedia, videoUrl)) {
+		media = `<video src="${escapeHtml(videoUrl)}" class="inline-media video-media" autoplay loop muted playsinline controls></video>`;
+		seenMedia.add(mediaKey(videoUrl));
+		if (imageUrl) seenMedia.add(mediaKey(imageUrl));
+		const tid = tenorIdOf(videoUrl) || tenorIdOf(imageUrl || '');
+		if (tid) seenMedia.add('tenor:' + tid);
+	} else if (imageUrl && !seenHasMedia(seenMedia, imageUrl)) {
+		media = `<img src="${escapeHtml(imageUrl)}" alt="embed media" class="inline-media">`;
+		seenMedia.add(mediaKey(imageUrl));
+		if (videoUrl) seenMedia.add(mediaKey(videoUrl));
+		const tid = tenorIdOf(imageUrl) || tenorIdOf(videoUrl || '');
+		if (tid) seenMedia.add('tenor:' + tid);
+	} else {
+		if (videoUrl) seenMedia.add(mediaKey(videoUrl));
+		if (imageUrl) seenMedia.add(mediaKey(imageUrl));
 	}
 
 	if (!title && !description && !fields && !footer && !author && !media) return '';
@@ -166,9 +168,7 @@ const renderEmbed = (embed, seenMedia) => {
 const resolveAvatar = author => {
 	if (!author) return DEFAULT_AVATAR;
 	if (author.avatar?.startsWith?.('http')) return author.avatar;
-	if (author.userId && author.avatar) {
-		return `https://cdn.discordapp.com/avatars/${author.userId}/${author.avatar}.png?size=512`;
-	}
+	if (author.userId && author.avatar) return `https://cdn.discordapp.com/avatars/${author.userId}/${author.avatar}.png?size=512`;
 	if (author.proxyAvatar) return author.proxyAvatar;
 	return DEFAULT_AVATAR;
 };
@@ -196,13 +196,9 @@ const loadTemplate = name => {
 		join('./user/templates', name),
 		join('./user/templates', `${name}.mustache`),
 	];
-
 	for (const file of candidates) {
-		if (fs.existsSync(file)) {
-			return fs.readFileSync(file, 'utf8');
-		}
+		if (fs.existsSync(file)) return fs.readFileSync(file, 'utf8');
 	}
-
 	throw new Error(`Transcript template "${name}" not found in public/ or user/templates/`);
 };
 
@@ -212,26 +208,15 @@ const getAppCss = () => {
 	const assetsDir = join(process.cwd(), 'node_modules/@discord-tickets/settings/build/client/_app/immutable/assets');
 	if (existsSync(assetsDir)) {
 		const files = fs.readdirSync(assetsDir).filter(f => /^0\..*\.css$/.test(f));
-		if (files.length > 0) {
-			const cssPath = join(assetsDir, files[0]);
-			appCss = fs.readFileSync(cssPath, 'utf8');
-		}
+		if (files.length > 0) appCss = fs.readFileSync(join(assetsDir, files[0]), 'utf8');
 	}
 	appCss ||= '';
 	return appCss;
 };
 
 const getFormatters = locale => ({
-	full: new Intl.DateTimeFormat([locale, 'en-GB'], {
-		dateStyle: 'full',
-		timeStyle: 'long',
-		timeZone: 'Etc/UTC',
-	}),
-	short: new Intl.DateTimeFormat([locale, 'en-GB'], {
-		dateStyle: 'short',
-		timeStyle: 'long',
-		timeZone: 'Etc/UTC',
-	}),
+	full: new Intl.DateTimeFormat([locale, 'en-GB'], { dateStyle: 'full', timeStyle: 'long', timeZone: 'Etc/UTC' }),
+	short: new Intl.DateTimeFormat([locale, 'en-GB'], { dateStyle: 'short', timeStyle: 'long', timeZone: 'Etc/UTC' }),
 });
 
 const buildChannelName = ticket => {
@@ -246,10 +231,7 @@ const normalizeHex = input => {
 	if (!input) return null;
 	const hex = input.replace('#', '');
 	if (/^[0-9a-fA-F]{6}$/.test(hex)) return `#${hex.toLowerCase()}`;
-	if (/^[0-9a-fA-F]{3}$/.test(hex)) {
-		const expanded = hex.split('').map(c => c + c).join('');
-		return `#${expanded.toLowerCase()}`;
-	}
+	if (/^[0-9a-fA-F]{3}$/.test(hex)) return `#${hex.split('').map(c => c + c).join('').toLowerCase()}`;
 	return null;
 };
 
@@ -257,12 +239,7 @@ async function fetchTranscriptTicket(client, ticketId, guildId) {
 	return await client.prisma.ticket.findUnique({
 		include: BASE_TRANSCRIPT_INCLUDE,
 		where: guildId && ticketId.length < 16
-			? {
-				guildId_number: {
-					guildId,
-					number: parseInt(ticketId),
-				},
-			}
+			? { guildId_number: { guildId, number: parseInt(ticketId) } }
 			: { id: ticketId },
 	});
 }
@@ -272,15 +249,9 @@ async function buildTranscriptViewModel(client, ticket) {
 	const channelName = buildChannelName(hydrated);
 	const { full, short } = getFormatters(hydrated.guild.locale);
 
-	hydrated.closedAtFull = function () {
-		return this.closedAt ? full.format(this.closedAt) : '';
-	};
-	hydrated.createdAtFull = function () {
-		return this.createdAt ? full.format(this.createdAt) : '';
-	};
-	hydrated.createdAtTimestamp = function () {
-		return this.createdAt ? short.format(this.createdAt) : '';
-	};
+	hydrated.closedAtFull = function () { return this.closedAt ? full.format(this.closedAt) : ''; };
+	hydrated.createdAtFull = function () { return this.createdAt ? full.format(this.createdAt) : ''; };
+	hydrated.createdAtTimestamp = function () { return this.createdAt ? short.format(this.createdAt) : ''; };
 
 	const messagesHtml = hydrated.archivedMessages.map(message => {
 		const authorName = message.author?.displayName || message.author?.username || message.authorId || 'Unknown author';
@@ -302,9 +273,8 @@ async function buildTranscriptViewModel(client, ticket) {
 				const primary = att.proxy_url || att.url;
 				const safe = escapeHtml(primary || '');
 				if (!safe) return '';
-				const key = mediaKey(primary);
-				if (seenMedia.has(key)) return '';
-				seenMedia.add(key);
+				if (seenHasMedia(seenMedia, primary)) return '';
+				seenMedia.add(mediaKey(primary));
 				if (att.url) seenMedia.add(mediaKey(att.url));
 				const contentType = att.content_type || '';
 				const isImg = isImageUrl(primary) || contentType.startsWith('image/');
@@ -321,9 +291,7 @@ async function buildTranscriptViewModel(client, ticket) {
 			return [];
 		})();
 
-		let embedCards = embedsRaw
-			.map(embed => renderEmbed(embed, seenMedia))
-			.filter(Boolean);
+		let embedCards = embedsRaw.map(embed => renderEmbed(embed, seenMedia)).filter(Boolean);
 		if (!embedCards.length && embedsRaw.length > 0) {
 			embedCards = [`<div class="embed-card muted">[embed]</div>`];
 		}
@@ -347,10 +315,10 @@ async function buildTranscriptViewModel(client, ticket) {
 				const nameStyle = roleColor ? ` style="color:${roleColor}"` : '';
 				const name = `<span class="author-name"${nameStyle}>${escapeHtml(authorName)}</span>`;
 				const role = roleName
-					? `<span class="role-pill" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
+					? `<span class="badge pill role-label" style="border-color:${roleColor || 'var(--border)'};color:${roleColor || 'var(--muted)'};">${escapeHtml(roleName)}</span>`
 					: '';
 				const copy = message.authorId
-					? `<button type="button" class="copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" title="${escapeHtml(message.authorId)}">&#x1F4CB;</button>`
+					? `<button type="button" class="badge pill copy-id-pill" data-user-id="${escapeHtml(message.authorId)}" title="${escapeHtml(message.authorId)}">Copy ID</button>`
 					: '';
 				return [name, role, copy].filter(Boolean).join('');
 			})(),
@@ -425,7 +393,6 @@ async function validateTranscriptToken(client, token, ticketId) {
 async function hasTranscriptAccess(client, ticket, userId) {
 	if (!userId) return false;
 	if (ticket.createdById === userId) return true;
-
 	const guild = client.guilds.cache.get(ticket.guildId);
 	if (!guild) return false;
 	const member = await guild.members.fetch(userId).catch(() => null);

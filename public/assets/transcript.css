@@ -270,49 +270,29 @@ hr {
     color: var(--text);
 }
 
-.role-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px 9px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba(255,255,255,0.06);
-    line-height: 1.7;
-    vertical-align: middle;
+.role-label {
+    color: var(--muted);
 }
 
 .copy-id-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border-radius: 5px;
-    border: 1px solid var(--accent);
-    background: rgba(88,101,242,0.13);
-    color: var(--accent);
     cursor: pointer;
-    font-size: 13px;
-    line-height: 1;
-    vertical-align: middle;
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    background: transparent;
+    font-family: inherit;
+    font-size: 11px;
     transition: background 120ms ease, color 120ms ease;
     user-select: none;
 }
 
 .copy-id-pill:hover {
-    background: var(--accent);
-    color: #fff;
+    background: rgba(88,101,242,0.15);
 }
 
 .copy-id-pill.copied {
-    background: var(--accent-2);
-    border-color: var(--accent-2);
-    color: #fff;
-    font-size: 10px;
+    background: var(--accent-2) !important;
+    border-color: var(--accent-2) !important;
+    color: #fff !important;
 }
 
 .chat-msg .time {
