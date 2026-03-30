@@ -303,6 +303,7 @@ module.exports.get = () => ({
 	const tbody = document.querySelector('tbody');
 	const countEl = document.querySelector('.count');
 	const titleEl = document.querySelector('h1');
+
 	const buildParams = (tab, page) => {
 		const p = new URLSearchParams();
 		p.set('tab', tab);
@@ -311,47 +312,64 @@ module.exports.get = () => ({
 		p.set('format', 'json');
 		return p.toString();
 	};
+
 	const renderRows = rows => {
 		tbody.innerHTML = rows.map(r => {
-			const links = r.viewUrl ? `<a href="${r.viewUrl}">${state.icons.view} View</a>${r.downloadUrl ? `<a href="${r.downloadUrl}">${state.icons.download} MD</a>` : ''}` : '<span class="muted">N/A</span>';
-			return `<tr>
-				<td><span class="badge">${r.id}</span></td>
-				<td>${r.number ?? '--'}</td>
-				<td>${r.guild}</td>
-				<td>${r.category}</td>
-				<td><div class="stack"><span class="strong opener-name">${r.openerName}</span><span class="muted opener-id">ID: ${r.openerId || '--'}</span></div></td>
-				<td>${r.createdAt ?? '--'}</td>
-				<td>${r.closedAt ?? '--'}</td>
-				<td class="meta">${links}</td>
-			</tr>`;
+			const links = r.viewUrl
+				? '<a href="' + r.viewUrl + '">' + state.icons.view + ' View</a>' + (r.downloadUrl ? '<a href="' + r.downloadUrl + '">' + state.icons.download + ' MD</a>' : '')
+				: '<span class="muted">N/A</span>';
+			return '<tr>' +
+				'<td><span class="badge">' + escapeHtml(r.id) + '</span></td>' +
+				'<td>' + (r.number ?? '--') + '</td>' +
+				'<td>' + escapeHtml(r.guild) + '</td>' +
+				'<td>' + escapeHtml(r.category) + '</td>' +
+				'<td><div class="stack"><span class="strong opener-name">' + escapeHtml(r.openerName) + '</span><span class="muted opener-id">ID: ' + escapeHtml(r.openerId || '--') + '</span></div></td>' +
+				'<td>' + (r.createdAt ?? '--') + '</td>' +
+				'<td>' + (r.closedAt ?? '--') + '</td>' +
+				'<td class="meta">' + links + '</td>' +
+			'</tr>';
 		}).join('') || '<tr><td colspan="8">No transcripts match your filters.</td></tr>';
 	};
+
 	const formatDate = iso => {
 		if (!iso) return '--';
 		const d = new Date(iso);
 		return new Intl.DateTimeFormat(['en-GB'], { dateStyle: 'medium', timeStyle: 'short' }).format(d);
 	};
+
 	const normalizeRows = rows => rows.map(r => ({
 		...r,
 		createdAt: formatDate(r.createdAt),
 		closedAt: r.closedAt ? formatDate(r.closedAt) : '--',
 	}));
+
 	const refresh = () => {
 		if (!document.hidden) {
 			fetch('/transcripts?' + buildParams(state.tab, state.tab === 'open' ? 1 : state.page))
 				.then(r => r.json())
 				.then(data => {
 					renderRows(normalizeRows(data.rows));
-					countEl.textContent = `${data.rows.length} shown | page ${data.page} of ${data.pages} | ${data.total} matching`;
+					countEl.textContent = data.rows.length + ' shown | page ' + data.page + ' of ' + data.pages + ' | ' + data.total + ' matching';
 					titleEl.textContent = state.tab === 'open' ? 'Open Tickets' : 'Transcripts';
 				})
 				.catch(() => {});
 		}
 	};
+
 	setInterval(refresh, 8000);
+
+	function escapeHtml(value) {
+		return String(value ?? '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
 	</script>
 </body>
 </html>`;
+
 		res.header('Content-Type', 'text/html; charset=utf-8');
 		return res.send(html);
 	},
