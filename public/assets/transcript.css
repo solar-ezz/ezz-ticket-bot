@@ -566,3 +566,27 @@ hr {
     vertical-align: -4px;
     object-fit: contain;
 }
+
+.mention {
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.mention-role {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+.mention-id {
+    color: var(--muted);
+    font-weight: 600;
+    margin-left: 4px;
+    font-size: 11px;
+}
