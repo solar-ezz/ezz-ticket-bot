@@ -112,7 +112,7 @@ module.exports.get = () => ({
 			rows.push({
 				id: ticket.id,
 				number: ticket.number,
-				openerName: ticket.createdBy?.displayName || ticket.createdBy?.username || ticket.createdById || 'Unknown',
+				openerName: ticket.createdBy?.username || ticket.createdBy?.displayName || 'Unknown',
 				openerId: ticket.createdById,
 				category: ticket.category?.name || 'Unknown',
 				guild: ticket.guild?.name || ticket.guildId,
@@ -195,6 +195,8 @@ module.exports.get = () => ({
 		.stack { display:flex; flex-direction:column; gap:2px; }
 		.strong { font-weight:600; color:var(--text); }
 		.muted { color:var(--muted); font-size:12px; }
+		.opener-name { display:block; line-height:1.25; }
+		.opener-id { display:block; line-height:1.15; }
 	</style>
 </head>
 <body>
