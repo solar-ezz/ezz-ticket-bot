@@ -112,7 +112,7 @@ module.exports.get = () => ({
 		const rows = [];
 		for (const ticket of tickets) {
 			if (!await hasTranscriptAccess(client, ticket, user.id)) continue;
-			const urls = buildTranscriptUrls(ticket.id);
+			const urls = tab === 'closed' ? buildTranscriptUrls(ticket.id) : {};
 			const safeDecrypt = value => {
 				try { return decrypt(value); } catch { return value; }
 			};
@@ -132,7 +132,7 @@ module.exports.get = () => ({
 				guild: ticket.guild?.name || ticket.guildId,
 				createdAt: ticket.createdAt,
 				closedAt: ticket.closedAt,
-				viewUrl: tab === 'closed' ? urls.viewUrl : null,
+				viewUrl: tab === 'closed' ? urls.viewUrl : `https://discord.com/channels/${ticket.guildId}/${ticket.id}`,
 				downloadUrl: tab === 'closed' ? urls.downloadUrl : null,
 			});
 			if (rows.length >= perPage) break;
