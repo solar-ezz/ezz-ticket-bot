@@ -1,4 +1,13 @@
 (() => {
+	function escapeHtml(str) {
+		return (str || '').replace(/[&<>"']/g, m => ({
+			'&': '&amp;',
+			'<': '&lt;',
+			'>': '&gt;',
+			'"': '&quot;',
+			"'": '&#39;',
+		}[m]));
+	}
 
 	window.addEventListener('load', () => {
 		const loader = document.getElementById('loader');
@@ -7,11 +16,7 @@
 		removeDuplicateMedia();
 	});
 
-	// Removes the large inline-media video/image when a smaller embed version
-	// of the same media already exists in the same message.
 	function removeDuplicateMedia() {
-		// Collect every URL referenced by a media element:
-		// checks both the direct `src` attribute AND every <source> child.
 		function getAllSrcs(el) {
 			const srcs = new Set();
 			const direct = el.getAttribute('src');
@@ -23,18 +28,19 @@
 			return srcs;
 		}
 
-		// Strip path + extension → just the bare filename for fuzzy matching.
-		// Handles CDNs that use different hashes per format (e.g. Tenor AAAPo vs AAAPs).
 		function toFilename(url) {
 			return url.split('/').pop().replace(/\.[^/.]+$/, '').toLowerCase();
 		}
 
-		// Two src-sets overlap if any URL matches exactly, OR any filename matches.
 		function srcSetsOverlap(aSet, bSet) {
 			for (const a of aSet) {
 				if (bSet.has(a)) return true;
 				const af = toFilename(a);
-				if (af) for (const b of bSet) if (af === toFilename(b)) return true;
+				if (af) {
+					for (const b of bSet) {
+						if (af === toFilename(b)) return true;
+					}
+				}
 			}
 			return false;
 		}
@@ -43,9 +49,8 @@
 			const body = msg.querySelector('.body');
 			if (!body) return;
 
-			// --- Videos ---
 			const inlineVids = Array.from(body.querySelectorAll('video.inline-media'));
-			const embedVids  = Array.from(body.querySelectorAll('video:not(.inline-media)'));
+			const embedVids = Array.from(body.querySelectorAll('video:not(.inline-media)'));
 
 			inlineVids.forEach(iv => {
 				const ivSrcs = getAllSrcs(iv);
@@ -54,9 +59,8 @@
 				if (isDupe) iv.remove();
 			});
 
-			// --- Images ---
 			const inlineImgs = Array.from(body.querySelectorAll('img.inline-media'));
-			const embedImgs  = Array.from(body.querySelectorAll('img:not(.inline-media):not(.avatar)'));
+			const embedImgs = Array.from(body.querySelectorAll('img:not(.inline-media):not(.avatar)'));
 
 			inlineImgs.forEach(ii => {
 				const iiSrc = ii.getAttribute('src')?.split('?')[0] || '';
@@ -106,6 +110,9 @@
 		});
 	}
 
+	const bodies = document.querySelectorAll('.chat-msg .body');
+	bodies.forEach(el => { el.dataset.original = el.innerHTML; });
+
 	document.addEventListener('click', async e => {
 		const btn = e.target.closest('.copy-id-pill');
 		if (!btn) return;
@@ -126,7 +133,7 @@
 				ta.remove();
 			}
 			btn.classList.add('copied');
-			btn.textContent = '✓';
+			btn.textContent = 'Copied';
 			setTimeout(() => {
 				btn.classList.remove('copied');
 				btn.textContent = original;
@@ -135,5 +142,4 @@
 			console.error('copy failed', err);
 		}
 	});
-
 })();

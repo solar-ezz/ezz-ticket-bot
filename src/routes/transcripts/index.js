@@ -102,7 +102,7 @@ module.exports.get = () => ({
 				: 'https://cdn.discordapp.com/embed/avatars/0.png';
 
 		const tickets = await client.prisma.ticket.findMany({
-			include: { category: true, guild: true, createdBy: true, archivedUsers: true },
+			include: { category: true, guild: true, createdBy: true, archivedUsers: true, feedback: true },
 			orderBy: tab === 'open' ? { createdAt: 'desc' } : { closedAt: 'desc' },
 			skip,
 			take: perPage * 10,
@@ -123,6 +123,7 @@ module.exports.get = () => ({
 				(archivedOpener ? (safeDecrypt(archivedOpener.displayName) || safeDecrypt(archivedOpener.username)) : null) ||
 				ticket.createdById ||
 				'Unknown';
+			const canRate = tab === 'closed' && ticket.createdById === user.id && !ticket.feedback;
 			rows.push({
 				id: ticket.id,
 				number: ticket.number,
@@ -134,6 +135,7 @@ module.exports.get = () => ({
 				closedAt: ticket.closedAt,
 				viewUrl: tab === 'closed' ? urls.viewUrl : `https://discord.com/channels/${ticket.guildId}/${ticket.id}`,
 				downloadUrl: tab === 'closed' ? urls.downloadUrl : null,
+				rateUrl: canRate ? `/transcripts/${ticket.id}/feedback` : null,
 			});
 			if (rows.length >= perPage) break;
 		}
@@ -166,7 +168,7 @@ module.exports.get = () => ({
 						</td>
 						<td>${formatDate(r.createdAt)}</td>
 						<td>${formatDate(r.closedAt)}</td>
-						<td class="meta">${r.viewUrl ? `<a href="${r.viewUrl}">${icons.view} View</a>` : '<span class="muted">N/A</span>'}${r.downloadUrl ? `<a href="${r.downloadUrl}">${icons.download} MD</a>` : ''}</td>
+						<td class="meta">${r.viewUrl ? `<a href="${r.viewUrl}">${icons.view} View</a>` : '<span class="muted">N/A</span>'}${r.downloadUrl ? `<a href="${r.downloadUrl}">${icons.download} MD</a>` : ''}${r.rateUrl ? `<a href="${r.rateUrl}">${icons.view} Rate</a>` : ''}</td>
 					</tr>`).join('') || '<tr><td colspan="8">No transcripts match your filters.</td></tr>';
 
 		if (req.query.format === 'json') {
@@ -318,6 +320,7 @@ module.exports.get = () => ({
 			const links = r.viewUrl
 				? '<a href="' + r.viewUrl + '">' + state.icons.view + ' View</a>' + (r.downloadUrl ? '<a href="' + r.downloadUrl + '">' + state.icons.download + ' MD</a>' : '')
 				: '<span class="muted">N/A</span>';
+			const rate = r.rateUrl ? '<a href="' + r.rateUrl + '">' + state.icons.view + ' Rate</a>' : '';
 			return '<tr>' +
 				'<td><span class="badge">' + escapeHtml(r.id) + '</span></td>' +
 				'<td>' + (r.number ?? '--') + '</td>' +
@@ -326,7 +329,7 @@ module.exports.get = () => ({
 				'<td><div class="stack"><span class="strong opener-name">' + escapeHtml(r.openerName) + '</span><span class="muted opener-id">ID: ' + escapeHtml(r.openerId || '--') + '</span></div></td>' +
 				'<td>' + (r.createdAt ?? '--') + '</td>' +
 				'<td>' + (r.closedAt ?? '--') + '</td>' +
-				'<td class="meta">' + links + '</td>' +
+				'<td class="meta">' + links + rate + '</td>' +
 			'</tr>';
 		}).join('') || '<tr><td colspan="8">No transcripts match your filters.</td></tr>';
 	};

@@ -469,6 +469,7 @@ async function ensureMarkdownBackup(fileName, content) {
 }
 
 module.exports = {
+	baseUrl,
 	buildTranscriptUrls,
 	buildTranscriptViewModel,
 	createTranscriptUrls,

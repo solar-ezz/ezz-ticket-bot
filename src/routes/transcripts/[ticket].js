@@ -8,6 +8,7 @@ const {
 	renderMarkdown,
 	validateTranscriptToken,
 } = require('../../lib/transcript');
+const { decrypt } = require('../../lib/crypto');
 
 const { existsSync, readFileSync } = require('fs');
 const { join, extname } = require('path');
@@ -64,6 +65,10 @@ module.exports.get = () => ({
 		viewModel.downloadUrl = urls.downloadUrl;
 		viewModel.transcriptUrl = urls.viewUrl;
 		viewModel.backUrl = '/transcripts';
+		const ownerId = ticket.createdById;
+		const feedbackExists = Boolean(ticket.feedback);
+		viewModel.allowFeedback = !feedbackExists && viewerId && viewerId === ownerId;
+		viewModel.feedbackUrl = viewModel.allowFeedback ? `/transcripts/${ticket.id}/feedback` : null;
 
 		const markdown = renderMarkdown(client, viewModel);
 		await ensureMarkdownBackup(viewModel.mdFileName, markdown);

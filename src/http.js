@@ -10,6 +10,7 @@ process.env.ORIGIN = process.env.HTTP_INTERNAL || process.env.HTTP_EXTERNAL;
 module.exports = async client => {
 	// for file uploads
 	fastify.register(require('@fastify/multipart'), { limits: { fileSize: 2 ** 27 } }); // 128 MiB
+	fastify.register(require('@fastify/formbody'));
 
 	// cookies plugin, must be registered before oauth2 since oauth2@7.2.0
 	fastify.register(require('@fastify/cookie'));

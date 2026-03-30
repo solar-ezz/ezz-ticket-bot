@@ -22,7 +22,7 @@ const { logTicketEvent } = require('../logging');
 const { isStaff } = require('../users');
 const { Collection } = require('discord.js');
 const spacetime = require('spacetime');
-const { createTranscriptUrls } = require('../transcript');
+const { createTranscriptUrls, baseUrl } = require('../transcript');
 const { join } = require('path');
 const fs = require('fs');
 
@@ -1324,19 +1324,29 @@ module.exports = class TicketManager {
 		}
 
 		const components = [];
-
+		const buttons = [];
+		let viewUrl;
 		if (ticket.guild.archive) {
-			const { viewUrl } = await createTranscriptUrls(this.client, ticket.id);
-			components.push(
-				new ActionRowBuilder()
-					.addComponents(
-						new ButtonBuilder()
-							.setStyle(ButtonStyle.Link)
-							.setEmoji(getMessage('buttons.transcript.emoji'))
-							.setLabel(getMessage('buttons.transcript.text'))
-							.setURL(viewUrl),
-					),
+			const urls = await createTranscriptUrls(this.client, ticket.id);
+			viewUrl = urls.viewUrl;
+			buttons.push(
+				new ButtonBuilder()
+					.setStyle(ButtonStyle.Link)
+					.setEmoji(getMessage('buttons.transcript.emoji'))
+					.setLabel(getMessage('buttons.transcript.text'))
+					.setURL(viewUrl),
 			);
+		}
+		const rateUrl = `${baseUrl()}/rate?ticket=${ticket.id}`;
+		buttons.push(
+			new ButtonBuilder()
+				.setStyle(ButtonStyle.Link)
+				.setEmoji('⭐')
+				.setLabel('Rate')
+				.setURL(rateUrl),
+		);
+		if (buttons.length) {
+			components.push(new ActionRowBuilder().addComponents(buttons));
 		}
 
 		const emojiFallback = {
