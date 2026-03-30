@@ -45,11 +45,12 @@ module.exports.get = () => ({
 			createdFrom: (req.query.createdFrom || '').trim(),
 			createdTo: (req.query.createdTo || '').trim(),
 		};
+		const tab = req.query.tab === 'open' ? 'open' : 'closed';
 
 		const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
 		const skip = (page - 1) * perPage;
 
-		const where = { closedAt: { not: null } };
+		const where = tab === 'open' ? { open: true, deleted: false } : { closedAt: { not: null } };
 
 		const createdAt = {};
 		const createdFrom = parseDateInput(filters.createdFrom);
@@ -102,7 +103,7 @@ module.exports.get = () => ({
 
 		const tickets = await client.prisma.ticket.findMany({
 			include: { category: true, guild: true, createdBy: true, archivedUsers: true },
-			orderBy: { closedAt: 'desc' },
+			orderBy: tab === 'open' ? { createdAt: 'desc' } : { closedAt: 'desc' },
 			skip,
 			take: perPage * 10,
 			where,
@@ -131,8 +132,8 @@ module.exports.get = () => ({
 				guild: ticket.guild?.name || ticket.guildId,
 				createdAt: ticket.createdAt,
 				closedAt: ticket.closedAt,
-				viewUrl: urls.viewUrl,
-				downloadUrl: urls.downloadUrl,
+				viewUrl: tab === 'closed' ? urls.viewUrl : null,
+				downloadUrl: tab === 'closed' ? urls.downloadUrl : null,
 			});
 			if (rows.length >= perPage) break;
 		}
@@ -165,8 +166,12 @@ module.exports.get = () => ({
 						</td>
 						<td>${formatDate(r.createdAt)}</td>
 						<td>${formatDate(r.closedAt)}</td>
-						<td class="meta"><a href="${r.viewUrl}">${icons.view} View</a><a href="${r.downloadUrl}">${icons.download} MD</a></td>
+						<td class="meta">${r.viewUrl ? `<a href="${r.viewUrl}">${icons.view} View</a>` : '<span class="muted">N/A</span>'}${r.downloadUrl ? `<a href="${r.downloadUrl}">${icons.download} MD</a>` : ''}</td>
 					</tr>`).join('') || '<tr><td colspan="8">No transcripts match your filters.</td></tr>';
+
+		if (req.query.format === 'json') {
+			return res.send({ rows, page, pages, total });
+		}
 
 		const html = `<!DOCTYPE html>
 <html lang="en">
@@ -210,13 +215,16 @@ module.exports.get = () => ({
 		.muted { color:var(--muted); font-size:12px; }
 		.opener-name { display:block; line-height:1.25; }
 		.opener-id { display:block; line-height:1.15; }
+		.tabbar { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+		.tabbar a { padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--panel2); color:var(--text); text-decoration:none; }
+		.tabbar a.active { background:var(--accent); border-color:var(--accent); color:#fff; }
 	</style>
 </head>
 <body>
 	<div class="wrap">
 	<header>
 			<div>
-				<h1>Transcripts</h1>
+				<h1>${tab === 'open' ? 'Open Tickets' : 'Transcripts'}</h1>
 				<div class="count">${rows.length} shown | page ${page} of ${pages} | ${total} matching</div>
 			</div>
 			<div class="meta">
@@ -225,6 +233,10 @@ module.exports.get = () => ({
 				<a href="/auth/login?r=/transcripts" class="btn-login">Login</a>
 			</div>
 		</header>
+		<div class="tabbar">
+			<a href="/transcripts?tab=closed" class="${tab === 'closed' ? 'active' : ''}">Closed transcripts</a>
+			<a href="/transcripts?tab=open" class="${tab === 'open' ? 'active' : ''}">Opened tickets</a>
+		</div>
 		<form class="filters" method="get" action="/transcripts">
 			<div class="grid">
 				<label>
@@ -253,6 +265,7 @@ module.exports.get = () => ({
 			<div class="actions">
 				<button type="submit">Search</button>
 				<a class="ghost" href="/transcripts">Clear</a>
+				<input type="hidden" name="tab" value="${tab}">
 			</div>
 		</form>
 		<div class="table-shell">
@@ -280,6 +293,63 @@ module.exports.get = () => ({
 			${page < pages ? `<a href="${pageLink(page + 1)}">Next</a>` : ''}
 		</nav>
 	</div>
+	<script>
+	const state = {
+		tab: '${tab}',
+		filters: ${JSON.stringify(filters)},
+		page: ${page},
+		icons: ${JSON.stringify(icons)}
+	};
+	const tbody = document.querySelector('tbody');
+	const countEl = document.querySelector('.count');
+	const titleEl = document.querySelector('h1');
+	const buildParams = (tab, page) => {
+		const p = new URLSearchParams();
+		p.set('tab', tab);
+		p.set('page', page);
+		Object.entries(state.filters).forEach(([k, v]) => { if (v) p.set(k, v); });
+		p.set('format', 'json');
+		return p.toString();
+	};
+	const renderRows = rows => {
+		tbody.innerHTML = rows.map(r => {
+			const links = r.viewUrl ? `<a href="${r.viewUrl}">${state.icons.view} View</a>${r.downloadUrl ? `<a href="${r.downloadUrl}">${state.icons.download} MD</a>` : ''}` : '<span class="muted">N/A</span>';
+			return `<tr>
+				<td><span class="badge">${r.id}</span></td>
+				<td>${r.number ?? '--'}</td>
+				<td>${r.guild}</td>
+				<td>${r.category}</td>
+				<td><div class="stack"><span class="strong opener-name">${r.openerName}</span><span class="muted opener-id">ID: ${r.openerId || '--'}</span></div></td>
+				<td>${r.createdAt ?? '--'}</td>
+				<td>${r.closedAt ?? '--'}</td>
+				<td class="meta">${links}</td>
+			</tr>`;
+		}).join('') || '<tr><td colspan="8">No transcripts match your filters.</td></tr>';
+	};
+	const formatDate = iso => {
+		if (!iso) return '--';
+		const d = new Date(iso);
+		return new Intl.DateTimeFormat(['en-GB'], { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+	};
+	const normalizeRows = rows => rows.map(r => ({
+		...r,
+		createdAt: formatDate(r.createdAt),
+		closedAt: r.closedAt ? formatDate(r.closedAt) : '--',
+	}));
+	const refresh = () => {
+		if (!document.hidden) {
+			fetch('/transcripts?' + buildParams(state.tab, state.tab === 'open' ? 1 : state.page))
+				.then(r => r.json())
+				.then(data => {
+					renderRows(normalizeRows(data.rows));
+					countEl.textContent = `${data.rows.length} shown | page ${data.page} of ${data.pages} | ${data.total} matching`;
+					titleEl.textContent = state.tab === 'open' ? 'Open Tickets' : 'Transcripts';
+				})
+				.catch(() => {});
+		}
+	};
+	setInterval(refresh, 8000);
+	</script>
 </body>
 </html>`;
 		res.header('Content-Type', 'text/html; charset=utf-8');
