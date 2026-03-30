@@ -194,6 +194,12 @@ hr {
     text-decoration: none;
 }
 
+.btn-download.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
 .bottom {
     flex: 1;
     display: flex;

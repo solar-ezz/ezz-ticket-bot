@@ -63,6 +63,7 @@ module.exports.get = () => ({
 		const viewModel = await buildTranscriptViewModel(client, ticket);
 		viewModel.downloadUrl = urls.downloadUrl;
 		viewModel.transcriptUrl = urls.viewUrl;
+		viewModel.backUrl = '/transcripts';
 
 		const markdown = renderMarkdown(client, viewModel);
 		await ensureMarkdownBackup(viewModel.mdFileName, markdown);
