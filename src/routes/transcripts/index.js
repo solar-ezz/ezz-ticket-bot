@@ -70,11 +70,13 @@ module.exports.get = () => ({
 			if (/^\d{5,20}$/.test(filters.opener)) {
 				where.createdById = filters.opener;
 			} else {
-				where.createdBy = {
-					OR: [
-						{ username: { contains: filters.opener, mode: 'insensitive' } },
-						{ displayName: { contains: filters.opener, mode: 'insensitive' } },
-					],
+				where.archivedUsers = {
+					some: {
+						OR: [
+							{ username: { contains: filters.opener, mode: 'insensitive' } },
+							{ displayName: { contains: filters.opener, mode: 'insensitive' } },
+						],
+					},
 				};
 			}
 		}
@@ -98,7 +100,7 @@ module.exports.get = () => ({
 				: 'https://cdn.discordapp.com/embed/avatars/0.png';
 
 		const tickets = await client.prisma.ticket.findMany({
-			include: { category: true, guild: true, createdBy: true },
+			include: { category: true, guild: true, createdBy: true, archivedUsers: true },
 			orderBy: { closedAt: 'desc' },
 			skip,
 			take: perPage * 10,
@@ -109,10 +111,12 @@ module.exports.get = () => ({
 		for (const ticket of tickets) {
 			if (!await hasTranscriptAccess(client, ticket, user.id)) continue;
 			const urls = buildTranscriptUrls(ticket.id);
+			const archivedOpener = ticket.archivedUsers?.find(u => u.userId === ticket.createdById) || ticket.archivedUsers?.[0];
+			const openerName = archivedOpener?.username || archivedOpener?.displayName || ticket.createdBy?.username || ticket.createdBy?.displayName || ticket.createdById || 'Unknown';
 			rows.push({
 				id: ticket.id,
 				number: ticket.number,
-				openerName: ticket.createdBy?.username || ticket.createdBy?.displayName || 'Unknown',
+				openerName,
 				openerId: ticket.createdById,
 				category: ticket.category?.name || 'Unknown',
 				guild: ticket.guild?.name || ticket.guildId,
