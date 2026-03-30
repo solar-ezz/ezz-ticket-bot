@@ -64,6 +64,14 @@ const mediaSig = url => {
 	}
 };
 
+const renderMentions = (html, userMap) => html.replace(/&lt;@!?(\d+)&gt;/g, (_, id) => {
+	const user = userMap.get(id);
+	const name = escapeHtml(user?.displayName || user?.username || id);
+	const color = normalizeHex(user?.role?.colour);
+	const roleLabel = user?.role?.name ? `<span class="mention-role" ${color ? `style="border-color:${color};color:${color};"` : ''}>${escapeHtml(user.role.name)}</span>` : '';
+	return `<span class="mention" ${color ? `style="color:${color};"` : ''}>@${name}${roleLabel ? ' ' + roleLabel : ''}<span class="mention-id">(${id})</span></span>`;
+});
+
 const renderEmojis = html => html.replace(
 	/&lt;(a?):([A-Za-z0-9_]+):(\d+)&gt;/g,
 	(_, animated, name, id) => {
@@ -159,10 +167,10 @@ const renderEmbed = (embed, seenMedia) => {
 	const data = embed.data || embed;
 	const title = data.title ? `<div class="embed-title">${escapeHtml(data.title)}</div>` : '';
 	const description = data.description
-		? `<div class="embed-description">${renderEmojis(linkifyWithSeen(data.description, seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>'))}</div>`
+		? `<div class="embed-description">${renderEmojis(renderMentions(linkifyWithSeen(data.description, seenMedia), new Map()).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>'))}</div>`
 		: '';
 	const fields = Array.isArray(data.fields) && data.fields.length
-		? `<div class="embed-fields">${data.fields.map(f => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(f?.name || '')}</div><div class="embed-field-value">${renderEmojis(linkifyWithSeen(f?.value || '', seenMedia).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>'))}</div></div>`).join('')}</div>`
+		? `<div class="embed-fields">${data.fields.map(f => `<div class="embed-field"><div class="embed-field-name">${escapeHtml(f?.name || '')}</div><div class="embed-field-value">${renderEmojis(renderMentions(linkifyWithSeen(f?.value || '', seenMedia), new Map()).replace(/\n/g, '<br>').replace(/(<br>\s*){2,}/gi, '<br>'))}</div></div>`).join('')}</div>`
 		: '';
 	const footer = data.footer?.text ? `<div class="embed-footer">${escapeHtml(data.footer.text)}</div>` : '';
 	const author = data.author?.name ? `<div class="embed-author">${escapeHtml(data.author.name)}</div>` : '';
@@ -304,7 +312,8 @@ async function buildTranscriptViewModel(client, ticket) {
 			.replace(/^(<br>|&nbsp;|\s)+/gi, '')
 			.replace(/(<br>\s*)+$/gi, '')
 			.replace(/(<br>\s*){2,}/gi, '<br>');
-		contentHtml = renderEmojis(contentHtml);
+		const userMap = new Map(hydrated.archivedUsers.map(u => [u.userId, u]));
+		contentHtml = renderEmojis(renderMentions(contentHtml, userMap));
 
 		const attachmentBlocks = (message.content?.attachments || [])
 			.map(att => {
