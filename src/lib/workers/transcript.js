@@ -21,6 +21,14 @@ function getTranscript(ticket) {
 		message.author = ticket.archivedUsers.find(u => u.userId === message.authorId);
 		message.content = JSON.parse(decrypt(message.content));
 		message.text = message.content.content?.replace(/\n/g, '\n\t') ?? '';
+		message.reactions = Array.isArray(message.content?.reactions)
+			? message.content.reactions.map(r => ({
+				name: r.emoji?.name || r.emoji?.id || '',
+				id: r.emoji?.id || null,
+				animated: Boolean(r.emoji?.animated),
+				count: r.count || 0,
+			}))
+			: [];
 		message.number = 'M' + String(i + 1).padStart(ticket.archivedMessages.length.toString().length, '0');
 		ticket.archivedMessages[i] = message;
 	});

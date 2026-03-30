@@ -230,7 +230,7 @@ module.exports.get = () => ({
 			<div class="meta">
 				${user ? `<img src="${avatarUrl}" alt="avatar" style="width:34px;height:34px;border-radius:50%;">` : ''}
 				<span>${user.username || ''}</span>
-				<a href="/auth/login?r=/transcripts" class="btn-login">Login</a>
+				${user ? '<a href="/auth/logout" class="btn-login">Logout</a>' : '<a href="/auth/login?r=/transcripts" class="btn-login">Login</a>'}
 			</div>
 		</header>
 		<div class="tabbar">

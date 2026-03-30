@@ -338,12 +338,22 @@ async function buildTranscriptViewModel(client, ticket) {
 		const hasAttachments = attachmentBlocks.length > 0;
 		const hasText = content && content.trim().length > 0;
 
+		const reactions = Array.isArray(message.reactions) ? message.reactions.filter(r => r.count > 0) : [];
+		const reactionsHtml = reactions.length
+			? `<div class="reactions">${reactions.map(r => {
+				const emojiUrl = r.id ? `https://cdn.discordapp.com/emojis/${r.id}.${r.animated ? 'gif' : 'png'}` : null;
+				const emoji = emojiUrl ? `<img src="${escapeHtml(emojiUrl)}" class="reaction-emoji" alt="${escapeHtml(r.name || '')}">` : escapeHtml(r.name || '');
+				return `<span class="reaction-pill">${emoji}<span class="reaction-count">${r.count}</span></span>`;
+			}).join('')}</div>`
+			: '';
+
 		if (!hasText && !hasEmbeds && !hasAttachments) {
 			contentHtml = '<span class="muted">[no content, likely embedded message]</span>';
 		} else {
 			contentHtml ||= '';
 			if (hasAttachments) contentHtml += `<div class="embed-media">${attachmentBlocks.join('')}</div>`;
 			if (hasEmbeds) contentHtml += `<div class="embed-media">${embedCards.join('')}</div>`;
+			if (reactionsHtml) contentHtml += reactionsHtml;
 		}
 
 		return {
