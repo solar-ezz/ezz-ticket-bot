@@ -1,4 +1,5 @@
 const { buildTranscriptUrls, hasTranscriptAccess } = require('../../lib/transcript');
+const { decrypt } = require('../../lib/crypto');
 
 const perPage = 14;
 const icons = {
@@ -111,8 +112,16 @@ module.exports.get = () => ({
 		for (const ticket of tickets) {
 			if (!await hasTranscriptAccess(client, ticket, user.id)) continue;
 			const urls = buildTranscriptUrls(ticket.id);
+			const safeDecrypt = value => {
+				try { return decrypt(value); } catch { return value; }
+			};
 			const archivedOpener = ticket.archivedUsers?.find(u => u.userId === ticket.createdById) || ticket.archivedUsers?.[0];
-			const openerName = archivedOpener?.username || archivedOpener?.displayName || ticket.createdBy?.username || ticket.createdBy?.displayName || ticket.createdById || 'Unknown';
+			const openerName =
+				ticket.createdBy?.username ||
+				ticket.createdBy?.displayName ||
+				(archivedOpener ? (safeDecrypt(archivedOpener.displayName) || safeDecrypt(archivedOpener.username)) : null) ||
+				ticket.createdById ||
+				'Unknown';
 			rows.push({
 				id: ticket.id,
 				number: ticket.number,
