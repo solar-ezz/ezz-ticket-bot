@@ -144,54 +144,56 @@
 		switchTab(activeTab === 'chat' ? 'info' : 'chat');
 	};
 
-	function setupRotateOverlay() {
-		const overlay = document.createElement('div');
-		overlay.id = 'rotate-overlay';
-		overlay.className = 'rotate-hidden';
-		overlay.innerHTML =
-			'<div class="rotate-inner">' +
-				'<div class="rotate-phone-wrap">' +
-					'<svg class="rotate-phone" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
-						'<rect x="14" y="4" width="36" height="56" rx="6" ry="6" fill="none" stroke="currentColor" stroke-width="3"/>' +
-						'<circle cx="32" cy="53" r="2.5" fill="currentColor"/>' +
-						'<rect x="24" y="8" width="16" height="3" rx="1.5" fill="currentColor" opacity="0.4"/>' +
-					'</svg>' +
-					'<svg class="rotate-arrow" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">' +
-						'<path d="M 20 60 A 30 30 0 1 1 60 60" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>' +
-						'<polyline points="52,52 60,60 68,52" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' +
-					'</svg>' +
-				'</div>' +
-				'<p class="rotate-title">Rotate your phone</p>' +
-				'<p class="rotate-sub">Landscape gives you the best experience</p>' +
-				'<button class="rotate-dismiss" id="rotate-dismiss">Continue in portrait</button>' +
-			'</div>';
-		document.body.appendChild(overlay);
+function setupRotateOverlay() {
+	const overlay = document.createElement('div');
+	overlay.id = 'rotate-overlay';
+	document.body.appendChild(overlay);
 
-		let dismissed = false;
+	overlay.innerHTML = `
+		<div class="rotate-inner">
+			<div class="rotate-phone-wrap">
+				<svg class="rotate-phone" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+					<rect x="14" y="4" width="36" height="56" rx="6" ry="6" fill="none" stroke="currentColor" stroke-width="4"/>
+					<circle cx="32" cy="53" r="2.5" fill="currentColor"/>
+					<rect x="24" y="8" width="16" height="3" rx="1" fill="currentColor" opacity="0.4"/>
+				</svg>
+				<svg class="rotate-arrow" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+					<path d="M20 60 A30 30 0 1 1 60 60" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+					<polyline points="52,52 60,60 68,52" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+				</svg>
+			</div>
+			<p class="rotate-title">Rotate your phone</p>
+			<p class="rotate-sub">Landscape gives you the best experience</p>
+			<button class="rotate-dismiss" id="rotate-dismiss">Continue in portrait</button>
+		</div>
+	`;
 
-		elById('rotate-dismiss').addEventListener('click', () => {
-			dismissed = true;
-			overlay.classList.add('rotate-hidden');
-		});
+	let dismissed = false;
 
-		function updateOverlay() {
-			if (!isPhoneDevice()) {
-				overlay.classList.add('rotate-hidden');
-				return;
-			}
-			if (dismissed) return;
-			if (isPortrait()) {
-				overlay.classList.remove('rotate-hidden');
-			} else {
-				overlay.classList.add('rotate-hidden');
-				dismissed = false;
-			}
+	document.getElementById('rotate-dismiss').addEventListener('click', () => {
+		dismissed = true;
+		overlay.classList.remove('show');
+	});
+
+	function updateOverlay() {
+		if (typeof screen === 'undefined' || Math.min(screen.width, screen.height) >= 500) {
+			overlay.classList.remove('show');
+			return;
 		}
+		if (dismissed) return;
 
-		window.addEventListener('resize', updateOverlay);
-		window.addEventListener('orientationchange', () => setTimeout(updateOverlay, 200));
-		updateOverlay();
+		if (window.innerHeight > window.innerWidth) {
+			overlay.classList.add('show');
+		} else {
+			overlay.classList.remove('show');
+			dismissed = false;
+		}
 	}
+
+	window.addEventListener('resize', updateOverlay);
+	window.addEventListener('orientationchange', () => setTimeout(updateOverlay, 200));
+	updateOverlay();
+}
 
 	function removeDuplicateMedia() {
 		function getAllSrcs(node) {
