@@ -560,27 +560,35 @@ hr {
 }
 
 @media screen and (max-width: 750px) {
+    html, body {
+        height: 100dvh;
+        overflow: hidden;
+    }
+
     aside { display: none; }
 
     main {
         flex-direction: column;
-        padding-bottom: 56px;
-        min-height: 100dvh;
+        height: 100dvh;
+        overflow: hidden;
+        padding-bottom: 0;
+        min-height: unset;
     }
 
     .sidebar-chat {
         display: none;
-        width: 100%;
-        min-width: unset;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        bottom: 56px;
+        bottom: calc(56px + env(safe-area-inset-bottom));
         z-index: 100;
+        width: 100%;
+        min-width: unset;
+        border-right: none;
+        border-bottom: none;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         flex-direction: column;
     }
 
@@ -593,7 +601,10 @@ hr {
         width: 100%;
         flex-direction: column;
         flex: 1;
-        min-height: 0;
+        height: 0;
+        overflow: hidden;
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+        box-sizing: border-box;
     }
 
     .rightside-area.tab-hidden {
@@ -601,19 +612,20 @@ hr {
     }
 
     .rightside-area nav {
-        position: sticky;
-        top: 0;
-        z-index: 10;
+        position: static;
+        flex-shrink: 0;
     }
 
     .bottom {
         flex: 1;
         min-height: 0;
         overflow: hidden;
+        display: flex;
     }
 
     .left {
         flex: 1;
+        min-height: 0;
         border-right: none;
         width: 100%;
         overflow-y: auto;
@@ -624,12 +636,11 @@ hr {
 
     .right {
         display: none;
-        width: 100%;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        bottom: 56px;
+        bottom: calc(56px + env(safe-area-inset-bottom));
         z-index: 100;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -664,12 +675,12 @@ hr {
         bottom: 0;
         left: 0;
         right: 0;
-        height: 56px;
+        height: calc(56px + env(safe-area-inset-bottom));
+        padding-bottom: env(safe-area-inset-bottom);
         background: #0b0c10;
         border-top: 1px solid var(--border);
         display: flex;
         z-index: 200;
-        padding-bottom: env(safe-area-inset-bottom);
     }
 
     .mobile-tab-bar button {
@@ -704,7 +715,6 @@ hr {
     .messages-list { gap: 10px; }
     .chat-msg { gap: 8px; }
     .chat-msg img.avatar { width: 34px; height: 34px; }
-    .btn-download span, .btn-download-text { display: none; }
 }
 
 .inline-emoji {
