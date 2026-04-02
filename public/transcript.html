@@ -6,9 +6,50 @@
 	<title>{{ channelName }} | Discord Transcript</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 	<link rel="stylesheet" href="/assets/transcript.css?v={{ assetVersion }}">
-	<style>{{{ appCss }}}</style>
+	<style>
+		{{{ appCss }}}
+
+		.rotate-reminder {
+			position: fixed;
+			top: 20px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: rgba(0, 0, 0, 0.85);
+			color: white;
+			padding: 12px 20px;
+			border-radius: 12px;
+			font-size: 14px;
+			z-index: 9999;
+			opacity: 0;
+			pointer-events: none;
+			animation: fadeReminder 4s ease forwards;
+		}
+
+		@keyframes fadeReminder {
+			0% {
+				opacity: 0;
+				transform: translateX(-50%) translateY(-10px);
+			}
+			15% {
+				opacity: 1;
+				transform: translateX(-50%) translateY(0);
+			}
+			80% {
+				opacity: 1;
+				transform: translateX(-50%) translateY(0);
+			}
+			100% {
+				opacity: 0;
+				transform: translateX(-50%) translateY(-10px);
+			}
+		}
+	</style>
 </head>
 <body>
+<div class="rotate-reminder">
+	<i class="fa-solid fa-mobile-screen"></i> If you are on mobile, rotate your phone
+</div>
+
 <div class="loader-home" id="loader">
 	<i class="fa-brands fa-discord"></i>
 	<h1>Loading transcript</h1>
@@ -88,12 +129,12 @@
 			</div>
 			<div class="icons-end">
 				{{#downloadUrl}}<a class="btn-download" href="{{ downloadUrl }}"><i class="fa-solid fa-download"></i> MD</a>{{/downloadUrl}}
-				{{#downloadUrl}}<a class="btn-download ghost" href="#" onclick="return false;"><i class="fa-solid fa-mobile-screen"></i> If you are on mobile, rotate your phone</a>{{/downloadUrl}}
 				{{#allowFeedback}}<a class="btn-download ghost" href="{{ feedbackUrl }}"><i class="fa-solid fa-star"></i> Rate</a>{{/allowFeedback}}
 				{{#backUrl}}<a class="btn-download ghost" href="{{ backUrl }}"><i class="fa-solid fa-arrow-left"></i> Back</a>{{/backUrl}}
 				<i class="fa-regular fa-clock"></i>
 			</div>
 		</nav>
+
 		<div class="bottom">
 			<div class="left">
 				<div class="messages-list">
@@ -117,44 +158,6 @@
 					</article>
 					{{/messagesHtml}}
 					{{^messagesHtml}}<p class="empty">No messages were archived.</p>{{/messagesHtml}}
-				</div>
-			</div>
-			<div class="right">
-				<h1>Ticket summary</h1>
-				<div class="summary-grid">
-					<div class="summary-item"><span>Guild</span><strong>{{ guildName }}</strong></div>
-					<div class="summary-item"><span>Category</span><strong>{{ ticket.category.name }}</strong></div>
-					<div class="summary-item"><span>Topic</span><strong>{{#ticket.topic}}{{ ticket.topic }}{{/ticket.topic}}{{^ticket.topic}}(no topic){{/ticket.topic}}</strong></div>
-					<div class="summary-item"><span>Created by</span><strong>{{#ticket.createdBy}}{{ displayName }} @{{ username }}#{{ discriminator }}{{/ticket.createdBy}}{{^ticket.createdBy}}Unknown{{/ticket.createdBy}}</strong></div>
-					<div class="summary-item"><span>Closed by</span><strong>{{#ticket.closedBy}}{{ displayName }} @{{ username }}#{{ discriminator }}{{/ticket.closedBy}}{{^ticket.closedBy}}(automated){{/ticket.closedBy}}</strong></div>
-					<div class="summary-item"><span>Claimed by</span><strong>{{#ticket.claimedBy}}{{ displayName }} @{{ username }}#{{ discriminator }}{{/ticket.claimedBy}}{{^ticket.claimedBy}}(not claimed){{/ticket.claimedBy}}</strong></div>
-					<div class="summary-item"><span>Reason</span><strong>{{#ticket.closedReason}}{{ ticket.closedReason }}{{/ticket.closedReason}}{{^ticket.closedReason}}(no reason){{/ticket.closedReason}}</strong></div>
-					{{#ticket.feedback}}
-					<div class="summary-item"><span>Feedback</span><strong>{{ rating }}/5 · {{#comment}}{{ comment }}{{/comment}}{{^comment}}(no comment){{/comment}}</strong></div>
-					{{/ticket.feedback}}
-				</div>
-
-				<div class="sec" style="margin-top:18px;">
-					<h2>Participants</h2>
-					<div class="pill-row">
-						{{#participants}}
-						<span class="pill">{{ displayName }} <span style="color:#a0a3a8">({{ id }})</span></span>
-						{{/participants}}
-						{{^participants}}<p class="empty">No participants recorded.</p>{{/participants}}
-					</div>
-				</div>
-
-				<div class="sec" style="margin-top:18px;">
-					<h2>Questions</h2>
-					<div class="summary-grid">
-						{{#ticket.questionAnswers}}
-						<div class="summary-item">
-							<span>{{ question.label }}</span>
-							<strong>{{#value}}{{ value }}{{/value}}{{^value}}(no answer){{/value}}</strong>
-						</div>
-						{{/ticket.questionAnswers}}
-						{{^ticket.questionAnswers}}<p class="empty">No questions were asked for this ticket.</p>{{/ticket.questionAnswers}}
-					</div>
 				</div>
 			</div>
 		</div>
