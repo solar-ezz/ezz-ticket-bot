@@ -88,6 +88,7 @@
 			</div>
 			<div class="icons-end">
 				{{#downloadUrl}}<a class="btn-download" href="{{ downloadUrl }}"><i class="fa-solid fa-download"></i> MD</a>{{/downloadUrl}}
+				{{#downloadUrl}}<a class="btn-download ghost" href="#" onclick="return false;"><i class="fa-solid fa-mobile-screen"></i> If you are on mobile, rotate your phone</a>{{/downloadUrl}}
 				{{#allowFeedback}}<a class="btn-download ghost" href="{{ feedbackUrl }}"><i class="fa-solid fa-star"></i> Rate</a>{{/allowFeedback}}
 				{{#backUrl}}<a class="btn-download ghost" href="{{ backUrl }}"><i class="fa-solid fa-arrow-left"></i> Back</a>{{/backUrl}}
 				<i class="fa-regular fa-clock"></i>
@@ -163,4 +164,3 @@
 <script src="/assets/transcript.js?v={{ assetVersion }}"></script>
 </body>
 </html>
-
