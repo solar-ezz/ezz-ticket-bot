@@ -15,10 +15,63 @@
 		fixAvatars();
 		removeDuplicateMedia();
 		setupMobileTabs();
+		setupRotateOverlay();
 	});
 
 	function isMobile() {
-		return window.innerWidth < 750;
+		return window.innerWidth < 750 || window.innerHeight < 750;
+	}
+
+	function isPortrait() {
+		return window.innerHeight > window.innerWidth;
+	}
+
+	function setupRotateOverlay() {
+		if (!('ontouchstart' in window) && !navigator.maxTouchPoints) return;
+
+		const overlay = document.createElement('div');
+		overlay.id = 'rotate-overlay';
+		overlay.innerHTML =
+			'<div class="rotate-inner">' +
+				'<div class="rotate-phone-wrap">' +
+					'<svg class="rotate-phone" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
+						'<rect x="14" y="4" width="36" height="56" rx="6" ry="6" fill="none" stroke="currentColor" stroke-width="3"/>' +
+						'<circle cx="32" cy="53" r="2.5" fill="currentColor"/>' +
+						'<rect x="24" y="8" width="16" height="3" rx="1.5" fill="currentColor" opacity="0.4"/>' +
+					'</svg>' +
+					'<svg class="rotate-arrow" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">' +
+						'<path d="M 20 60 A 30 30 0 1 1 60 60" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>' +
+						'<polyline points="52,52 60,60 68,52" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+					'</svg>' +
+				'</div>' +
+				'<p class="rotate-title">Rotate your phone</p>' +
+				'<p class="rotate-sub">Landscape mode gives you the best transcript experience</p>' +
+				'<button class="rotate-dismiss" id="rotate-dismiss">Continue in portrait</button>' +
+			'</div>';
+		document.body.appendChild(overlay);
+
+		let dismissed = false;
+
+		document.getElementById('rotate-dismiss').addEventListener('click', () => {
+			dismissed = true;
+			overlay.classList.add('rotate-hidden');
+		});
+
+		function update() {
+			if (dismissed) return;
+			const mobile = isMobile();
+			const portrait = isPortrait();
+			if (mobile && portrait) {
+				overlay.classList.remove('rotate-hidden');
+			} else {
+				overlay.classList.add('rotate-hidden');
+				dismissed = false;
+			}
+		}
+
+		window.addEventListener('resize', update);
+		window.addEventListener('orientationchange', () => setTimeout(update, 120));
+		update();
 	}
 
 	let activeTab = 'chat';
