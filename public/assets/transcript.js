@@ -14,6 +14,75 @@
 		if (loader) loader.remove();
 		fixAvatars();
 		removeDuplicateMedia();
+		setupMobileTabs();
+	});
+
+	function isMobile() {
+		return window.innerWidth < 750;
+	}
+
+	let activeTab = 'chat';
+
+	function setupMobileTabs() {
+		if (!isMobile()) return;
+
+		const bar = document.createElement('div');
+		bar.className = 'mobile-tab-bar';
+		bar.id = 'mobile-tab-bar';
+		bar.innerHTML =
+			'<button class="active" data-tab="chat"><i class="fa-solid fa-message"></i>Chat</button>' +
+			'<button data-tab="info"><i class="fa-solid fa-circle-info"></i>Info</button>' +
+			'<button data-tab="summary"><i class="fa-solid fa-list"></i>Summary</button>';
+		document.body.appendChild(bar);
+
+		bar.addEventListener('click', e => {
+			const btn = e.target.closest('button');
+			if (!btn) return;
+			switchTab(btn.dataset.tab);
+		});
+
+		switchTab('chat');
+	}
+
+	function switchTab(tab) {
+		activeTab = tab;
+		const bar = document.getElementById('mobile-tab-bar');
+		const sidebar = document.getElementById('s');
+		const rightside = document.getElementById('r');
+		const right = document.querySelector('.right');
+
+		if (!bar) return;
+
+		bar.querySelectorAll('button').forEach(b => {
+			b.classList.toggle('active', b.dataset.tab === tab);
+		});
+
+		if (sidebar) sidebar.classList.remove('tab-active');
+		if (right) right.classList.remove('tab-active');
+		if (rightside) rightside.classList.remove('tab-hidden');
+
+		if (tab === 'info') {
+			if (sidebar) sidebar.classList.add('tab-active');
+			if (rightside) rightside.classList.add('tab-hidden');
+		} else if (tab === 'summary') {
+			if (right) right.classList.add('tab-active');
+			if (rightside) rightside.classList.add('tab-hidden');
+		}
+	}
+
+	window.addEventListener('resize', () => {
+		const bar = document.getElementById('mobile-tab-bar');
+		if (!isMobile()) {
+			if (bar) bar.remove();
+			const sidebar = document.getElementById('s');
+			const rightside = document.getElementById('r');
+			const right = document.querySelector('.right');
+			if (sidebar) { sidebar.classList.remove('tab-active'); sidebar.style.display = ''; }
+			if (rightside) { rightside.classList.remove('tab-hidden'); rightside.style.display = ''; }
+			if (right) right.classList.remove('tab-active');
+		} else if (!bar) {
+			setupMobileTabs();
+		}
 	});
 
 	function removeDuplicateMedia() {
@@ -86,17 +155,9 @@
 
 	let toggleOpen = false;
 	window.openToggle = () => {
-		if (window.innerWidth >= 750) return;
-		const list = document.getElementById('s');
-		const right = document.getElementById('r');
-		if (!list || !right) return;
-		if (!toggleOpen) {
-			list.style.display = 'none';
-			right.style.display = 'flex';
-		} else {
-			list.style.display = 'block';
-			right.style.display = 'none';
-		}
+		if (!isMobile()) return;
+		const newTab = activeTab === 'chat' ? 'info' : 'chat';
+		switchTab(newTab);
 		toggleOpen = !toggleOpen;
 	};
 
