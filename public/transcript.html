@@ -6,9 +6,129 @@
 	<title>{{ channelName }} | Discord Transcript</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 	<link rel="stylesheet" href="/assets/transcript.css?v={{ assetVersion }}">
-	<style>{{{ appCss }}}</style>
+<style>
+	.rotate-reminder {
+		position: fixed;
+		top: 20px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: rgba(0, 0, 0, 0.85);
+		color: white;
+		padding: 12px 20px;
+		border-radius: 12px;
+		font-size: 14px;
+		z-index: 9999;
+		opacity: 0;
+		pointer-events: none;
+		animation: fadeReminder 4s ease forwards;
+	}
+
+	@keyframes fadeReminder {
+		0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+		15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+		80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+		100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+	}
+
+	#rotate-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 9999;
+		background: #0e1014;
+		display: none;
+		align-items: center;
+		justify-content: center;
+	}
+
+	#rotate-overlay.show {
+		display: flex;
+	}
+
+	.rotate-inner {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 20px;
+		text-align: center;
+		max-width: 320px;
+		padding: 40px 20px;
+	}
+
+	.rotate-phone-wrap {
+		position: relative;
+		width: 160px;
+		height: 160px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.rotate-phone {
+		width: 92px;
+		height: 92px;
+		color: #5865f2;
+		animation: phone-rock 2s ease-in-out infinite;
+	}
+
+	.rotate-arrow {
+		position: absolute;
+		width: 110px;
+		height: 110px;
+		color: #a7abb5;
+		opacity: 0.35;
+		animation: arrow-fade 2s ease-in-out infinite;
+	}
+
+	.rotate-title {
+		margin: 0;
+		font-size: 22px;
+		font-weight: 700;
+		color: #fff;
+	}
+
+	.rotate-sub {
+		margin: 8px 0 0;
+		font-size: 15px;
+		color: #a7abb5;
+		line-height: 1.5;
+	}
+
+	.rotate-dismiss {
+		margin-top: 16px;
+		background: transparent;
+		border: 1px solid #2d3140;
+		color: #a7abb5;
+		border-radius: 8px;
+		padding: 12px 32px;
+		font-size: 15px;
+		font-family: inherit;
+		cursor: pointer;
+		transition: all 120ms ease;
+	}
+
+	.rotate-dismiss:hover {
+		border-color: #e5e7ed;
+		color: #e5e7ed;
+	}
+
+	@keyframes phone-rock {
+		0%, 25% { transform: rotate(0deg); }
+		65%, 85% { transform: rotate(-90deg); }
+		100% { transform: rotate(0deg); }
+	}
+
+	@keyframes arrow-fade {
+		0%, 100% { opacity: 0.15; }
+		35% { opacity: 0.55; }
+		65% { opacity: 0.15; }
+	}
+</style>
 </head>
 <body>
+<div class="rotate-reminder">
+	<i class="fa-solid fa-mobile-screen"></i> If you are on mobile, rotate your phone
+</div>
+
 <div class="loader-home" id="loader">
 	<i class="fa-brands fa-discord"></i>
 	<h1>Loading transcript</h1>
@@ -93,6 +213,7 @@
 				<i class="fa-regular fa-clock"></i>
 			</div>
 		</nav>
+
 		<div class="bottom">
 			<div class="left">
 				<div class="messages-list">
@@ -118,44 +239,6 @@
 					{{^messagesHtml}}<p class="empty">No messages were archived.</p>{{/messagesHtml}}
 				</div>
 			</div>
-			<div class="right">
-				<h1>Ticket summary</h1>
-				<div class="summary-grid">
-					<div class="summary-item"><span>Guild</span><strong>{{ guildName }}</strong></div>
-					<div class="summary-item"><span>Category</span><strong>{{ ticket.category.name }}</strong></div>
-					<div class="summary-item"><span>Topic</span><strong>{{#ticket.topic}}{{ ticket.topic }}{{/ticket.topic}}{{^ticket.topic}}(no topic){{/ticket.topic}}</strong></div>
-					<div class="summary-item"><span>Created by</span><strong>{{#ticket.createdBy}}{{ displayName }} @{{ username }}#{{ discriminator }}{{/ticket.createdBy}}{{^ticket.createdBy}}Unknown{{/ticket.createdBy}}</strong></div>
-					<div class="summary-item"><span>Closed by</span><strong>{{#ticket.closedBy}}{{ displayName }} @{{ username }}#{{ discriminator }}{{/ticket.closedBy}}{{^ticket.closedBy}}(automated){{/ticket.closedBy}}</strong></div>
-					<div class="summary-item"><span>Claimed by</span><strong>{{#ticket.claimedBy}}{{ displayName }} @{{ username }}#{{ discriminator }}{{/ticket.claimedBy}}{{^ticket.claimedBy}}(not claimed){{/ticket.claimedBy}}</strong></div>
-					<div class="summary-item"><span>Reason</span><strong>{{#ticket.closedReason}}{{ ticket.closedReason }}{{/ticket.closedReason}}{{^ticket.closedReason}}(no reason){{/ticket.closedReason}}</strong></div>
-					{{#ticket.feedback}}
-					<div class="summary-item"><span>Feedback</span><strong>{{ rating }}/5 · {{#comment}}{{ comment }}{{/comment}}{{^comment}}(no comment){{/comment}}</strong></div>
-					{{/ticket.feedback}}
-				</div>
-
-				<div class="sec" style="margin-top:18px;">
-					<h2>Participants</h2>
-					<div class="pill-row">
-						{{#participants}}
-						<span class="pill">{{ displayName }} <span style="color:#a0a3a8">({{ id }})</span></span>
-						{{/participants}}
-						{{^participants}}<p class="empty">No participants recorded.</p>{{/participants}}
-					</div>
-				</div>
-
-				<div class="sec" style="margin-top:18px;">
-					<h2>Questions</h2>
-					<div class="summary-grid">
-						{{#ticket.questionAnswers}}
-						<div class="summary-item">
-							<span>{{ question.label }}</span>
-							<strong>{{#value}}{{ value }}{{/value}}{{^value}}(no answer){{/value}}</strong>
-						</div>
-						{{/ticket.questionAnswers}}
-						{{^ticket.questionAnswers}}<p class="empty">No questions were asked for this ticket.</p>{{/ticket.questionAnswers}}
-					</div>
-				</div>
-			</div>
 		</div>
 	</div>
 </main>
@@ -163,4 +246,3 @@
 <script src="/assets/transcript.js?v={{ assetVersion }}"></script>
 </body>
 </html>
-
