@@ -1326,28 +1326,6 @@ module.exports = class TicketManager {
 		const components = [];
 		const buttons = [];
 		let viewUrl;
-		if (ticket.guild.archive) {
-			const urls = await createTranscriptUrls(this.client, ticket.id);
-			viewUrl = urls.viewUrl;
-			buttons.push(
-				new ButtonBuilder()
-					.setStyle(ButtonStyle.Link)
-					.setEmoji(getMessage('buttons.transcript.emoji'))
-					.setLabel(getMessage('buttons.transcript.text'))
-					.setURL(viewUrl),
-			);
-		}
-		const rateUrl = `${baseUrl()}/rate?ticket=${ticket.id}`;
-		buttons.push(
-			new ButtonBuilder()
-				.setStyle(ButtonStyle.Link)
-				.setEmoji('⭐')
-				.setLabel('Rate')
-				.setURL(rateUrl),
-		);
-		if (buttons.length) {
-			components.push(new ActionRowBuilder().addComponents(buttons));
-		}
 
 		const emojiFallback = {
 			id: '🆔',
@@ -1398,6 +1376,35 @@ module.exports = class TicketManager {
 				return null;
 			}
 		};
+
+		if (ticket.guild.archive) {
+			const urls = await createTranscriptUrls(this.client, ticket.id);
+			viewUrl = urls.viewUrl;
+			const transcriptEmoji = await this.getGuildEmojiAsync(ticket.guild.id || ticket.guildId, 'ezz_transcript')
+				|| await ensureEmoji('transcript')
+				|| getMessage('buttons.transcript.emoji');
+			buttons.push(
+				new ButtonBuilder()
+					.setStyle(ButtonStyle.Link)
+					.setEmoji(transcriptEmoji)
+					.setLabel(getMessage('buttons.transcript.text'))
+					.setURL(viewUrl),
+			);
+		}
+		const rateUrl = `${baseUrl()}/rate?ticket=${ticket.id}`;
+		const rateEmoji = await this.getGuildEmojiAsync(ticket.guild.id || ticket.guildId, 'ezz_rate')
+			|| await ensureEmoji('rate')
+			|| '⭐';
+		buttons.push(
+			new ButtonBuilder()
+				.setStyle(ButtonStyle.Link)
+				.setEmoji(rateEmoji)
+				.setLabel('Rate')
+				.setURL(rateUrl),
+		);
+		if (buttons.length) {
+			components.push(new ActionRowBuilder().addComponents(buttons));
+		}
 
 		const label = async (emojiName, text) => {
 			const custom = await ensureEmoji(emojiName);
