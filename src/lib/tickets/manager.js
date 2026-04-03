@@ -1,5 +1,3 @@
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable max-lines */
 const TicketArchiver = require('./archiver');
 const {
 	ActionRowBuilder,
@@ -34,22 +32,8 @@ const { pools } = require('../threads');
 
 const { crypto } = pools;
 
-/**
- * @typedef {import('@prisma/client').Category &
- * 	{guild: import('@prisma/client').Guild} &
- * 	{questions: import('@prisma/client').Question[]}} CategoryGuildQuestions
- */
-
-/**
- * @typedef {import('@prisma/client').Ticket &
- * 	{category: import('@prisma/client').Category} &
- * 	{feedback: import('@prisma/client').Feedback} &
- * 	{guild: import('@prisma/client').Guild}} TicketCategoryFeedbackGuild
- */
-
 module.exports = class TicketManager {
 	constructor(client) {
-		/** @type {import("client")} */
 		this.client = client;
 		this.archiver = new TicketArchiver(client);
 		this.$count = { categories: {} };
@@ -82,7 +66,6 @@ module.exports = class TicketManager {
 				await guild.emojis.fetch();
 				found = guild.emojis.cache.find(e => e.name === name);
 			} catch {
-				// ignore fetch errors, fallback will be used
 			}
 		}
 		const value = found || fallback;
@@ -90,15 +73,8 @@ module.exports = class TicketManager {
 		return value;
 	}
 
-	/**
-	 * Retrieve cached category data
-	 * @param {string} categoryId the category ID
-	 * @param {boolean} force bypass & update the cache?
-	 * @returns {Promise<CategoryGuildQuestions>}
-	 */
 	async getCategory(categoryId, force) {
 		const cacheKey = `cache/category+guild+questions:${categoryId}`;
-		/** @type {CategoryGuildQuestions} */
 		let category = await this.client.keyv.get(cacheKey);
 		if (!category || force) {
 			category = await this.client.prisma.category.findUnique({
@@ -113,15 +89,8 @@ module.exports = class TicketManager {
 		return category;
 	}
 
-	/**
-	 * Retrieve cached ticket data for the closing sequence
-	 * @param {string} ticketId the ticket ID
-	 * @param {boolean} force bypass & update the cache?
-	 * @returns {Promise<TicketCategoryFeedbackGuild>}
-	 */
 	async getTicket(ticketId, force) {
 		const cacheKey = `cache/ticket+category+feedback+guild:${ticketId}`;
-		/** @type {TicketCategoryFeedbackGuild} */
 		let ticket = await this.client.keyv.get(cacheKey);
 		if (!ticket || force) {
 			ticket = await this.client.prisma.ticket.findUnique({
@@ -185,14 +154,6 @@ module.exports = class TicketManager {
 		return this.$numbers[guildId];
 	}
 
-	/**
-	 * @param {object} data
-	 * @param {string} data.categoryId
-	 * @param {import("discord.js").ChatInputCommandInteraction
-	 * | import("discord.js").ButtonInteraction
-	 * | import("discord.js").SelectMenuInteraction} data.interaction
-	 * @param {string?} [data.topic]
-	 */
 	async create({
 		categoryId, interaction, topic, referencesMessageId, referencesTicketId,
 	}) {
@@ -224,7 +185,6 @@ module.exports = class TicketManager {
 			});
 		}
 
-		/** @type {import("discord.js").Guild} */
 		const guild = this.client.guilds.cache.get(category.guild.id);
 		const member = interaction.member ?? await guild.members.fetch(interaction.user.id);
 		const getMessage = this.client.i18n.getLocale(category.guild.locale);
@@ -266,7 +226,6 @@ module.exports = class TicketManager {
 			if (blocked) return await sendError('blocked');
 		}
 
-		// Don't let timed out users open tickets, they won't be able to write anything inside
 		if (member.isCommunicationDisabled()) {
 			return await sendError('blocked');
 		}
@@ -326,7 +285,7 @@ module.exports = class TicketManager {
 					.setTitle(category.name)
 					.setComponents(
 						category.questions
-							.filter(q => q.type === 'TEXT') // TODO: remove this when modals support select menus
+							.filter(q => q.type === 'TEXT')
 							.map(q => {
 								if (q.type === 'TEXT') {
 									const field = new TextInputBuilder()
@@ -397,14 +356,6 @@ module.exports = class TicketManager {
 		}
 	}
 
-	/**
-	 * @param {object} data
-	 * @param {string} data.category
-	 * @param {import("discord.js").ButtonInteraction
-	 * | import("discord.js").SelectMenuInteraction
-	 * | import("discord.js").ModalSubmitInteraction} data.interaction
-	 * @param {string?} [data.topic]
-	 */
 	async postQuestions({
 		action, categoryId, interaction, topic, referencesMessageId, referencesTicketId,
 	}) {
@@ -424,7 +375,7 @@ module.exports = class TicketManager {
 							userId: interaction.user.id,
 							value: interaction.fields.getTextInputValue(q.id)
 								? await crypto.queue(w => w.encrypt(interaction.fields.getTextInputValue(q.id)))
-								: '', // TODO: maybe this should be null?
+								: '',
 						})),
 				);
 				if (category.customTopic) topic = interaction.fields.getTextInputValue(category.customTopic);
@@ -433,7 +384,6 @@ module.exports = class TicketManager {
 			}
 		}
 
-		/** @type {import("discord.js").Guild} */
 		const guild = this.client.guilds.cache.get(category.guild.id);
 		const getMessage = this.client.i18n.getLocale(category.guild.locale);
 		const creator = await guild.members.fetch(interaction.user.id);
@@ -443,7 +393,6 @@ module.exports = class TicketManager {
 			.replace(/{+\s?(nick|display)(name)?\s?}+/gi, creator.displayName)
 			.replace(/{+\s?num(ber)?\s?}+/gi, number === 1488 ? '1487b' : number);
 		const allow = ['ViewChannel', 'ReadMessageHistory', 'SendMessages', 'EmbedLinks', 'AttachFiles'];
-		/** @type {import("discord.js").TextChannel} */
 		const staffRoleOverwrites = [];
 		for (const roleId of category.staffRoles) {
 			const role = guild.roles.cache.get(roleId) ?? await guild.roles.fetch(roleId).catch(() => null);
@@ -613,13 +562,10 @@ module.exports = class TicketManager {
 			})
 			.catch(this.client.log.error);
 
-		/** @type {import("discord.js").Message|undefined} */
 		let message;
 		if (referencesMessageId) {
-			/** @type {import("discord.js").Message} */
 			message = await interaction.channel.messages.fetch(referencesMessageId);
 			if (message) {
-				// not worth the effort of making system messages work atm
 				if (message.system || !message.content) {
 					referencesMessageId = null;
 					message = null;
@@ -658,7 +604,6 @@ module.exports = class TicketManager {
 
 			}
 		} else if (referencesTicketId) {
-			// TODO: add portal url
 			const ticket = await this.client.prisma.ticket.findUnique({ where: { id: referencesTicketId } });
 			if (ticket) {
 				const embed = new ExtendedEmbedBuilder({
@@ -793,24 +738,22 @@ module.exports = class TicketManager {
 		try {
 			const workingHours = category.guild.workingHours;
 			const timezone = workingHours[0];
-			workingHours.shift(); // remove timezone
+			workingHours.shift();
 			const now = spacetime.now(timezone);
 			const currentHours = workingHours[now.day()];
 			const start = now.time(currentHours[0]);
 			const end = now.time(currentHours[1]);
 			let working = true;
 
-			if (currentHours[0] === currentHours[1] || now.isAfter(end)) { // staff have the day off or have finished for the day
-				// first look for the next working day *this* week (after today)
+			if (currentHours[0] === currentHours[1] || now.isAfter(end)) {
 				let nextIndex = workingHours.findIndex((hours, i) => i > now.day() && hours[0] !== hours[1]);
-				// if there isn't one, look for the next working day *next* week (before and including today's weekday)
 				if (!nextIndex) nextIndex = workingHours.findIndex((hours, i) => i <= now.day() && hours[0] !== hours[1]);
 				if (nextIndex) {
 					working = false;
 					const next = workingHours[nextIndex];
 					let then = now.add(nextIndex - now.day(), 'day');
 					if (nextIndex <= now.day()) then = then.add(1, 'week');
-					const timestamp = Math.ceil(then.time(next[0]).goto('utc').d.getTime() / 1000); // in seconds
+					const timestamp = Math.ceil(then.time(next[0]).goto('utc').d.getTime() / 1000);
 					channel.send({
 						embeds: [
 							new ExtendedEmbedBuilder()
@@ -820,9 +763,9 @@ module.exports = class TicketManager {
 						],
 					}).catch(this.client.log.error);
 				}
-			} else if (now.isBefore(start)) { // staff haven't started working yet
+			} else if (now.isBefore(start)) {
 				working = false;
-				const timestamp = Math.ceil(start.goto('utc').d.getTime() / 1000); // in seconds
+				const timestamp = Math.ceil(start.goto('utc').d.getTime() / 1000);
 				channel.send({
 					embeds: [
 						new ExtendedEmbedBuilder()
@@ -857,9 +800,6 @@ module.exports = class TicketManager {
 		}
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction|import("discord.js").ButtonInteraction} interaction
-	 */
 	async claim(interaction) {
 		const ticket = await this.client.prisma.ticket.findUnique({
 			include: {
@@ -871,7 +811,7 @@ module.exports = class TicketManager {
 		});
 		const getMessage = this.client.i18n.getLocale(ticket.guild.locale);
 
-		if (!(await isStaff(interaction.guild, interaction.user.id))) { // if user is not staff
+		if (!(await isStaff(interaction.guild, interaction.user.id))) {
 			return await interaction.reply({
 				embeds: [
 					new ExtendedEmbedBuilder({
@@ -960,9 +900,6 @@ module.exports = class TicketManager {
 		});
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction|import("discord.js").ButtonInteraction} interaction
-	 */
 	async release(interaction) {
 		const ticket = await this.client.prisma.ticket.findUnique({
 			include: {
@@ -974,7 +911,7 @@ module.exports = class TicketManager {
 		});
 		const getMessage = this.client.i18n.getLocale(ticket.guild.locale);
 
-		if (!(await isStaff(interaction.guild, interaction.user.id))) { // if user is not staff
+		if (!(await isStaff(interaction.guild, interaction.user.id))) {
 			return await interaction.reply({
 				embeds: [
 					new ExtendedEmbedBuilder({
@@ -1091,9 +1028,6 @@ module.exports = class TicketManager {
 	}
 
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction|import("discord.js").ButtonInteraction} interaction
-	 */
 	async beforeRequestClose(interaction) {
 		const ticket = await this.getTicket(interaction.channel.id);
 		if (!ticket) {
@@ -1125,7 +1059,7 @@ module.exports = class TicketManager {
 
 		const getMessage = this.client.i18n.getLocale(ticket.guild.locale);
 		const staff = await isStaff(interaction.guild, interaction.user.id);
-		const reason = interaction.options?.getString('reason', false) || null; // ?. because it could be a button interaction
+		const reason = interaction.options?.getString('reason', false) || null;
 
 		if (ticket.createdById !== interaction.user.id && !staff) {
 			return await interaction.editReply({
@@ -1145,17 +1079,12 @@ module.exports = class TicketManager {
 		) {
 			return await interaction.showModal(this.buildFeedbackModal(ticket.guild.locale, {
 				next: 'requestClose',
-				reason, // known issue: a reason longer than a few words will cause an error due to 100 character custom_id limit
+				reason,
 			}));
 		}
 
-		// not showing feedback, so send the close request
-
-		// defer asap
 		await interaction.deferReply();
 
-		// if the creator isn't in the guild , close the ticket immediately
-		// (although leaving should cause the ticket to be closed anyway)
 		try {
 			await interaction.guild.members.fetch(ticket.createdById);
 		} catch {
@@ -1165,14 +1094,7 @@ module.exports = class TicketManager {
 		this.requestClose(interaction, reason);
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction
-	 * | import("discord.js").ButtonInteraction
-	 * | import("discord.js").ModalSubmitInteraction} interaction
-	 * @param {string} reason
-	 */
 	async requestClose(interaction, reason) {
-		// interaction could be command, button. or modal
 		const ticket = await this.getTicket(interaction.channel.id);
 		const getMessage = this.client.i18n.getLocale(ticket.guild.locale);
 		const staff = interaction.user.id !== ticket.createdById && await isStaff(interaction.guild, interaction.user.id);
@@ -1180,10 +1102,7 @@ module.exports = class TicketManager {
 			action: 'close',
 			expect: staff ? 'user' : 'staff',
 		};
-		const embed = new ExtendedEmbedBuilder(/* {
-			iconURL: interaction.guild.iconURL(),
-			text: ticket.guild.footer,
-		} */)
+		const embed = new ExtendedEmbedBuilder()
 			.setColor(ticket.guild.primaryColour)
 			.setTitle(getMessage(`ticket.close.${staff ? 'staff' : 'user'}_request.title`, { requestedBy: interaction.member.displayName }));
 
@@ -1216,13 +1135,13 @@ module.exports = class TicketManager {
 							.setLabel(getMessage('buttons.reject_close_request.text')),
 					),
 			],
-			content: staff ? `<@${ticket.createdById}>` : '', // ticket.category.pingRoles.map(r => `<@&${r}>`).join(' ')
+			content: staff ? `<@${ticket.createdById}>` : '',
 			embeds: [embed],
 		});
 
 		this.$stale.set(ticket.id, {
 			closeAt: ticket.guild.autoClose ? Date.now() + ticket.guild.autoClose : null,
-			closedBy: interaction.user.id, // null if set as stale due to inactivity
+			closedBy: interaction.user.id,
 			message: sent,
 			messages: 0,
 			reason,
@@ -1237,11 +1156,6 @@ module.exports = class TicketManager {
 		}
 	}
 
-	/**
-	 * @param {import("discord.js").ChatInputCommandInteraction
-	 * | import("discord.js").ButtonInteraction
-	 * | import("discord.js").ModalSubmitInteraction} interaction
-	 */
 	async acceptClose(interaction) {
 		const ticket = await this.getTicket(interaction.channel.id);
 		const getMessage = this.client.i18n.getLocale(ticket.guild.locale);
@@ -1260,10 +1174,6 @@ module.exports = class TicketManager {
 		await this.finallyClose(interaction.channel.id, this.$stale.get(interaction.channel.id) || {});
 	}
 
-	/**
-	 * close a ticket
-	 * @param {string} ticketId
-	 */
 	async finallyClose(ticketId, {
 		closedBy = null,
 		reason = null,
@@ -1276,7 +1186,6 @@ module.exports = class TicketManager {
 			where: { id: ticket.id },
 		});
 
-		/** @type {import("@prisma/client").Ticket} */
 		const data = {
 			closedAt: new Date(),
 			closedBy: closedBy && {
@@ -1284,13 +1193,12 @@ module.exports = class TicketManager {
 					create: { id: closedBy },
 					where: { id: closedBy },
 				},
-			} || undefined, // Prisma wants undefined not null because it is a relation
+			} || undefined,
 			closedReason: reason && await crypto.queue(w => w.encrypt(reason)),
 			messageCount: archivedMessages,
 			open: false,
 		};
 
-		/** @type {import("discord.js").TextChannel} */
 		const channel = this.client.channels.cache.get(ticketId);
 		if (channel) {
 			const pinned = await channel.messages.fetchPins();
