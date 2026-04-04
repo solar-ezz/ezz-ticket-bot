@@ -15,6 +15,8 @@ module.exports.get = fastify => ({
 		let memberFound = false;
 		let tokenInvalid = false;
 
+		await client.guilds.fetch().catch(() => null);
+
 		for (const guild of client.guilds.cache.values()) {
 			let role = guild.roles.cache.get(roleId);
 			if (!role) {

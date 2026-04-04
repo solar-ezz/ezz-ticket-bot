@@ -308,6 +308,7 @@
       box-shadow: 0 24px 48px rgba(0,0,0,0.55);
       display: grid;
       gap: 12px;
+      position: relative;
     }
     .auth-card h2 { margin: 0; letter-spacing: 0.03em; }
     .auth-card p { margin: 0; color: var(--muted); line-height: 1.5; }
@@ -401,6 +402,7 @@
 
   <div class="auth-overlay" data-auth-overlay>
     <div class="auth-card">
+      <button class="btn ghost" data-auth-close style="position:absolute;top:14px;right:14px;padding:6px 10px;">✕</button>
       <div class="badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/>
@@ -429,6 +431,7 @@
     const authMessage = document.querySelector("[data-auth-message]");
     const loginButtons = document.querySelectorAll("[data-login]");
     const logoutButtons = document.querySelectorAll("[data-logout]");
+    const authClose = document.querySelector("[data-auth-close]");
     const loginUrl = `/auth/login?r=${encodeURIComponent('/console')}`;
     const maxLines = 120;
     let poll;
@@ -450,6 +453,7 @@
     logoutButtons.forEach(btn => btn.addEventListener("click", () => {
       window.location.href = "/auth/logout";
     }));
+    authClose?.addEventListener("click", () => toggleOverlay(false));
 
     toggleOverlay(true, "Checking access...");
     setAuthButtons(false);
