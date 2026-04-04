@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Console Stream</title>
+  <style>
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --muted: #aaa;
+      --panel: #0a0a0a;
+      --accent: #fff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); height: 100%; font-family: "DM Mono", "SFMono-Regular", Menlo, Consolas, monospace; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .grain::before, .grain::after {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 0);
+      background-size: 3px 3px;
+      opacity: 0.25;
+      animation: drift 14s linear infinite;
+      pointer-events: none;
+    }
+    .grain::after {
+      background-size: 2px 2px;
+      opacity: 0.15;
+      animation-duration: 20s;
+      mix-blend-mode: screen;
+    }
+    @keyframes drift {
+      from { transform: translate3d(0,0,0) rotate(0deg); }
+      to { transform: translate3d(2%, -2%, 0) rotate(1turn); }
+    }
+    .scan {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px);
+      mix-blend-mode: screen;
+      animation: scan 4s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes scan {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
+    }
+    .shell {
+      width: min(960px, 94vw);
+      padding: 32px;
+      background: radial-gradient(circle at 10% 10%, rgba(255,255,255,0.06), transparent 25%), linear-gradient(135deg, rgba(255,255,255,0.05), transparent 45%), var(--panel);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(255,255,255,0.05);
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(2px);
+    }
+    header { margin-bottom: 20px; }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 13px;
+    }
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .icon {
+      width: 42px;
+      height: 42px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      animation: pulse 2.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    p.sub {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      background: rgba(0,0,0,0.45);
+      position: relative;
+      overflow: hidden;
+      min-height: 96px;
+      transition: transform 220ms ease, border-color 220ms ease;
+    }
+    .card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.3); }
+    .card h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .metric {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .muted { color: var(--muted); }
+    .ticker {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .tick {
+      flex: 1;
+      height: 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .tick::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0.5), rgba(255,255,255,0.2));
+      transform: translateX(-100%);
+      animation: sweep 1.4s ease-in-out infinite;
+      animation-delay: calc(var(--i) * 0.18s);
+    }
+    @keyframes sweep {
+      0% { transform: translateX(-100%); }
+      60% { transform: translateX(20%); }
+      100% { transform: translateX(120%); }
+    }
+    .console-hint {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 18px rgba(255,255,255,0.7);
+      transition: background 180ms linear, box-shadow 180ms linear;
+    }
+    .offline { background: #444; box-shadow: 0 0 12px rgba(255,255,255,0.25); }
+    .oscilloscope {
+      margin-top: 12px;
+      height: 44px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 2px;
+    }
+    .bar {
+      background: rgba(255,255,255,0.12);
+      border-radius: 6px;
+      transform-origin: bottom;
+      animation: breathe 2.8s ease-in-out infinite;
+      animation-delay: calc(var(--j) * 0.08s);
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scaleY(0.3); }
+      40% { transform: scaleY(1); }
+      70% { transform: scaleY(0.55); }
+    }
+    a { color: var(--fg); }
+    .badge {
+      padding: 4px 8px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 6px;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge svg { width: 14px; height: 14px; }
+    .user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      min-width: 220px;
+    }
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.35), rgba(255,255,255,0.05));
+      background-size: cover;
+      background-position: center;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .user-meta { display: flex; flex-direction: column; gap: 4px; }
+    .user-name {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: linear-gradient(120deg, #fff, #dcdcdc);
+      -webkit-background-clip: text;
+      color: transparent;
+      text-transform: none;
+      font-size: 14px;
+    }
+    .user-role {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .terminal {
+      margin-top: 10px;
+      padding: 10px;
+      height: 240px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 10px;
+      background: #050505;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .line {
+      display: grid;
+      grid-template-columns: 86px 78px 1fr;
+      align-items: start;
+      column-gap: 8px;
+      font-size: 12px;
+    }
+    .time { color: var(--muted); }
+    .tag {
+      padding: 2px 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 10px;
+    }
+    .tag.ok { background: rgba(255,255,255,0.06); }
+    .tag.err { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.35); }
+    .payload { word-break: break-word; white-space: pre-wrap; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .cta { display: flex; align-items: center; gap: 10px; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: linear-gradient(120deg, rgba(255,255,255,0.18), rgba(255,255,255,0.06));
+      color: #000;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 11px;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+    }
+    .btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.3); }
+    .btn:active { transform: translateY(0); }
+    .btn.ghost { background: transparent; color: var(--fg); }
+    .btn[hidden] { display: none !important; }
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05), transparent 32%), rgba(0,0,0,0.82);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+      padding: 24px;
+    }
+    .auth-card {
+      width: min(520px, 90vw);
+      padding: 26px;
+      background: #050505;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.55);
+      display: grid;
+      gap: 12px;
+    }
+    .auth-card h2 { margin: 0; letter-spacing: 0.03em; }
+    .auth-card p { margin: 0; color: var(--muted); line-height: 1.5; }
+  </style>
+</head>
+<body class="grain">
+  <div class="scan" aria-hidden="true"></div>
+  <div class="shell">
+    <header>
+      <div class="header-row">
+        <div class="title">
+          <div class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/>
+              <path d="M7 9l4 3-4 3M12 15h5"/>
+            </svg>
+          </div>
+          <div>
+            <h1>Live Console Stream</h1>
+            <p class="sub">Authenticated console feed. Role-gated access.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="user" data-user>
+            <div class="avatar" data-avatar></div>
+            <div class="user-meta">
+              <div class="user-name" data-username>Checking access...</div>
+              <div class="user-role" data-role>Authorising</div>
+            </div>
+          </div>
+          <div class="cta">
+            <button class="btn" data-login>Login</button>
+            <button class="btn ghost" data-logout hidden>Logout</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M8 12h8M12 8v8"/>
+          </svg>
+          Console Feed
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+          <div class="status-dot" data-status></div>
+          <div>
+            <div class="metric" data-ping>--</div>
+            <div class="muted">Latency (ms)</div>
+          </div>
+        </div>
+        <div class="oscilloscope" aria-hidden="true">
+          <div class="bar" style="--j:0"></div><div class="bar" style="--j:1"></div><div class="bar" style="--j:2"></div>
+          <div class="bar" style="--j:3"></div><div class="bar" style="--j:4"></div><div class="bar" style="--j:5"></div>
+          <div class="bar" style="--j:6"></div><div class="bar" style="--j:7"></div><div class="bar" style="--j:8"></div>
+          <div class="bar" style="--j:9"></div><div class="bar" style="--j:10"></div><div class="bar" style="--j:11"></div>
+          <div class="bar" style="--j:12"></div><div class="bar" style="--j:13"></div><div class="bar" style="--j:14"></div>
+          <div class="bar" style="--j:15"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Shard Status</h3>
+        <div class="ticker" aria-hidden="true">
+          <div class="tick" style="--i:0"></div><div class="tick" style="--i:1"></div><div class="tick" style="--i:2"></div>
+          <div class="tick" style="--i:3"></div><div class="tick" style="--i:4"></div><div class="tick" style="--i:5"></div>
+        </div>
+        <div style="margin-top:12px;font-size:13px;line-height:1.6;" data-shards>Waiting for stream...</div>
+      </div>
+
+      <div class="card">
+        <h3>Instructions</h3>
+        <div class="console-hint">
+          1. Sign in with Discord and hold the required role.<br>
+          2. The feed refreshes every 2.5 seconds from /status.<br>
+          3. Keep the tab focused to keep animations smooth.
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <h3>Live Feed</h3>
+        <div class="terminal" data-feed>
+          <div class="muted">Waiting for first ping...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-overlay" data-auth-overlay>
+    <div class="auth-card">
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M9 12h6M12 9v6"/>
+        </svg>
+        Authentication
+      </div>
+      <h2>Login Required</h2>
+      <p data-auth-message>Sign in with Discord to access the live console stream.</p>
+      <div class="cta">
+        <button class="btn" data-login>Login</button>
+        <button class="btn ghost" data-logout hidden>Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const pingEl = document.querySelector("[data-ping]");
+    const shardsEl = document.querySelector("[data-shards]");
+    const statusDot = document.querySelector("[data-status]");
+    const feed = document.querySelector("[data-feed]");
+    const userNameEl = document.querySelector("[data-username]");
+    const userRoleEl = document.querySelector("[data-role]");
+    const avatarEl = document.querySelector("[data-avatar]");
+    const authOverlay = document.querySelector("[data-auth-overlay]");
+    const authMessage = document.querySelector("[data-auth-message]");
+    const loginButtons = document.querySelectorAll("[data-login]");
+    const logoutButtons = document.querySelectorAll("[data-logout]");
+    const loginUrl = `/auth/login?r=${encodeURIComponent('/console')}`;
+    const maxLines = 120;
+    let poll;
+
+    const toggleOverlay = (visible, message) => {
+      if (!authOverlay) return;
+      authOverlay.hidden = !visible;
+      if (message && authMessage) authMessage.textContent = message;
+    };
+
+    const setAuthButtons = authed => {
+      loginButtons.forEach(btn => btn.hidden = authed);
+      logoutButtons.forEach(btn => btn.hidden = !authed);
+    };
+
+    loginButtons.forEach(btn => btn.addEventListener("click", () => {
+      window.location.href = loginUrl;
+    }));
+    logoutButtons.forEach(btn => btn.addEventListener("click", () => {
+      window.location.href = "/auth/logout";
+    }));
+
+    toggleOverlay(true, "Checking access...");
+    setAuthButtons(false);
+
+    const ensureFeedReady = () => {
+      if (!feed.dataset.ready) {
+        feed.innerHTML = "";
+        feed.dataset.ready = "1";
+      }
+    };
+
+    const addLine = (level, label, payload) => {
+      ensureFeedReady();
+      const line = document.createElement("div");
+      line.className = "line";
+      const time = document.createElement("span");
+      time.className = "time";
+      time.textContent = new Date().toLocaleTimeString();
+      const tag = document.createElement("span");
+      tag.className = `tag ${level}`;
+      tag.textContent = label;
+      const body = document.createElement("span");
+      body.className = "payload";
+      body.textContent = typeof payload === "string" ? payload : JSON.stringify(payload);
+      line.append(time, tag, body);
+      feed.appendChild(line);
+      while (feed.childNodes.length > maxLines) feed.removeChild(feed.firstChild);
+      feed.scrollTop = feed.scrollHeight;
+    };
+
+    const shade = (rgb, factor) => rgb.map(v => Math.max(0, Math.min(255, Math.round(v * factor))));
+    const intToRgb = value => [value >> 16 & 255, value >> 8 & 255, value & 255];
+    const rgbToCss = rgb => `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+
+    const applyUser = ({ user, role }) => {
+      const colorInt = role?.color ?? 0;
+      const baseRgb = role?.hex && role.hex !== '#000000'
+        ? intToRgb(parseInt(role.hex.replace('#', ''), 16))
+        : intToRgb(colorInt);
+      const gradient = (colorInt === 0 && (!role?.hex || role.hex === '#000000'))
+        ? "linear-gradient(120deg, #fff, #dcdcdc)"
+        : `linear-gradient(120deg, ${rgbToCss(shade(baseRgb, 1.08))}, ${rgbToCss(shade(baseRgb, 0.86))})`;
+      userNameEl.style.backgroundImage = gradient;
+      userNameEl.textContent = user.username;
+      userRoleEl.textContent = role?.name || "Unknown role";
+      const avatar = user.avatar
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
+        : `https://cdn.discordapp.com/embed/avatars/${Number(user.id) % 5}.png`;
+      avatarEl.style.backgroundImage = `url(${avatar})`;
+    };
+
+    const fetchAuth = async () => {
+      const res = await fetch("/console/data", { cache: "no-store" });
+      let body = null;
+      try { body = await res.json(); } catch (_) {}
+      if (res.status === 401) {
+        const msg = body?.message || "Sign in with Discord to access the console.";
+        toggleOverlay(true, msg);
+        setAuthButtons(false);
+        userNameEl.textContent = "Sign in required";
+        userRoleEl.textContent = msg;
+        statusDot.classList.add("offline");
+        return null;
+      }
+      if (res.status === 403) {
+        const msg = body?.message || "Required role missing.";
+        addLine("err", "access", msg);
+        userNameEl.textContent = "Access denied";
+        userRoleEl.textContent = msg;
+        statusDot.classList.add("offline");
+        toggleOverlay(true, msg);
+        setAuthButtons(true);
+        return null;
+      }
+      if (!res.ok) {
+        const msg = body?.message || `HTTP ${res.status}`;
+        addLine("err", "access", msg);
+        userNameEl.textContent = "Unavailable";
+        userRoleEl.textContent = msg;
+        statusDot.classList.add("offline");
+        toggleOverlay(true, msg);
+        setAuthButtons(false);
+        return null;
+      }
+      applyUser(body);
+      setAuthButtons(true);
+      toggleOverlay(false);
+      return body;
+    };
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/status", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const { ping, status, shards } = data;
+        pingEl.textContent = typeof ping === "number" ? ping.toFixed(0) : "--";
+        statusDot.classList.toggle("offline", status !== 0);
+        const shardLines = (shards || []).map(shard => `#${shard.id}: ${shard.status} (${shard.ping} ms)`);
+        shardsEl.textContent = shardLines.length ? shardLines.join(" | ") : "No shards reported.";
+        addLine("ok", "status", data);
+      } catch (err) {
+        statusDot.classList.add("offline");
+        shardsEl.textContent = "Unable to reach /status.";
+        addLine("err", "status-error", err.message || String(err));
+      }
+    }
+
+    const start = async () => {
+      const auth = await fetchAuth();
+      if (!auth) return;
+      await fetchStatus();
+      poll = setInterval(fetchStatus, 2500);
+    };
+
+    start();
+    window.addEventListener("beforeunload", () => poll && clearInterval(poll));
+  </script>
+</body>
+</html>
