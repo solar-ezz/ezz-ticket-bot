@@ -298,10 +298,17 @@
       backdrop-filter: blur(6px);
       z-index: 10;
       padding: 24px;
+      opacity: 1;
+      transition: opacity 140ms ease;
+    }
+    .auth-overlay.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
     }
     .auth-card {
       width: min(520px, 90vw);
-      padding: 26px;
+      padding: 40px 26px 26px;
       background: #050505;
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 16px;
@@ -309,6 +316,14 @@
       display: grid;
       gap: 12px;
       position: relative;
+    }
+    .auth-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 6px 10px;
+      min-width: auto;
+      line-height: 1;
     }
     .auth-card h2 { margin: 0; letter-spacing: 0.03em; }
     .auth-card p { margin: 0; color: var(--muted); line-height: 1.5; }
@@ -402,7 +417,7 @@
 
   <div class="auth-overlay" data-auth-overlay>
     <div class="auth-card">
-      <button class="btn ghost" data-auth-close style="position:absolute;top:14px;right:14px;padding:6px 10px;">✕</button>
+      <button class="btn ghost auth-close" data-auth-close>×</button>
       <div class="badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/>
@@ -438,7 +453,9 @@
 
     const toggleOverlay = (visible, message) => {
       if (!authOverlay) return;
-      authOverlay.hidden = !visible;
+      authOverlay.classList.toggle("is-hidden", !visible);
+      authOverlay.style.display = visible ? "grid" : "none";
+      authOverlay.setAttribute("aria-hidden", (!visible).toString());
       if (message && authMessage) authMessage.textContent = message;
     };
 
