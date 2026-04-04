@@ -32,10 +32,11 @@ module.exports = class TicketCompleter extends Autocompleter {
 
 		if (!tickets) {
 			const cmd = client.commands.commands.slash.get('transcript');
-			const { locale } = await client.prisma.guild.findUnique({
+			const guild = await client.prisma.guild.findUnique({
 				select: { locale: true },
 				where: { id: guildId },
 			});
+			const locale = guild?.locale ?? 'en-GB';
 			tickets = await client.prisma.ticket.findMany({
 				include: { category: true },
 				where: {

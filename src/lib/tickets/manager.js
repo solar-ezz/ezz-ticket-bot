@@ -158,31 +158,34 @@ module.exports = class TicketManager {
 		categoryId, interaction, topic, referencesMessageId, referencesTicketId,
 	}) {
 		categoryId = Number(categoryId);
-		const category = await this.getCategory(categoryId);
+		let category = await this.getCategory(categoryId);
 
-		if (!category) {
-			let settings;
-			if (interaction.guild) {
-				settings = await this.client.prisma.guild.findUnique({ where: { id: interaction.guild.id } });
-			} else {
-				settings = {
-					errorColour: 'Red',
-					locale: 'en-GB',
-				};
+		if (!category || !category.guild) {
+			if (category) category = await this.getCategory(categoryId, true);
+			if (!category || !category.guild) {
+				let settings;
+				if (interaction.guild) {
+					settings = await this.client.prisma.guild.findUnique({ where: { id: interaction.guild.id } });
+				} else {
+					settings = {
+						errorColour: 'Red',
+						locale: 'en-GB',
+					};
+				}
+				const getMessage = this.client.i18n.getLocale(settings.locale);
+				return await interaction.reply({
+					embeds: [
+						new ExtendedEmbedBuilder({
+							iconURL: interaction.guild?.iconURL(),
+							text: settings.footer,
+						})
+							.setColor(settings.errorColour)
+							.setTitle(getMessage('misc.unknown_category.title'))
+							.setDescription(getMessage('misc.unknown_category.description')),
+					],
+					flags: MessageFlags.Ephemeral,
+				});
 			}
-			const getMessage = this.client.i18n.getLocale(settings.locale);
-			return await interaction.reply({
-				embeds: [
-					new ExtendedEmbedBuilder({
-						iconURL: interaction.guild?.iconURL(),
-						text: settings.footer,
-					})
-						.setColor(settings.errorColour)
-						.setTitle(getMessage('misc.unknown_category.title'))
-						.setDescription(getMessage('misc.unknown_category.description')),
-				],
-				flags: MessageFlags.Ephemeral,
-			});
 		}
 
 		const guild = this.client.guilds.cache.get(category.guild.id);
