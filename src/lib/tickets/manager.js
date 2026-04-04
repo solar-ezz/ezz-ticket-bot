@@ -42,6 +42,12 @@ module.exports = class TicketManager {
 		this.$emojiCache = new Map();
 	}
 
+	normalizeEmoji(emoji) {
+		if (!emoji || typeof emoji === 'string') return emoji;
+		if (emoji.id) return { id: emoji.id, name: emoji.name, animated: emoji.animated };
+		return emoji;
+	}
+
 	getGuildEmoji(guildId, name, fallback) {
 		if (!guildId) return fallback;
 		const cacheKey = `${guildId}:${name}`;
@@ -526,7 +532,7 @@ module.exports = class TicketManager {
 				new ButtonBuilder()
 					.setCustomId(JSON.stringify({ action: 'claim' }))
 					.setStyle(ButtonStyle.Secondary)
-					.setEmoji(this.getGuildEmoji(category.guild.id || category.guildId, 'ezz_claim', getMessage('buttons.claim.emoji')))
+					.setEmoji(this.normalizeEmoji(this.getGuildEmoji(category.guild.id || category.guildId, 'ezz_claim', getMessage('buttons.claim.emoji'))))
 					.setLabel(getMessage('buttons.claim.text')),
 			);
 		}
@@ -643,7 +649,7 @@ module.exports = class TicketManager {
 						.addComponents(
 							new ButtonBuilder()
 								.setStyle(ButtonStyle.Link)
-								.setEmoji(transcriptEmoji)
+								.setEmoji(this.normalizeEmoji(transcriptEmoji))
 								.setLabel(getMessage('buttons.transcript.text'))
 								.setURL(viewUrl),
 						);
@@ -867,7 +873,7 @@ module.exports = class TicketManager {
 					new ButtonBuilder()
 						.setCustomId(JSON.stringify({ action: 'unclaim' }))
 						.setStyle(ButtonStyle.Secondary)
-						.setEmoji(this.getGuildEmoji(ticket.guild.id || ticket.guildId, 'ezz_claim', getMessage('buttons.unclaim.emoji')))
+						.setEmoji(this.normalizeEmoji(this.getGuildEmoji(ticket.guild.id || ticket.guildId, 'ezz_claim', getMessage('buttons.unclaim.emoji'))))
 						.setLabel(getMessage('buttons.unclaim.text')),
 				);
 			}
@@ -960,7 +966,7 @@ module.exports = class TicketManager {
 					new ButtonBuilder()
 						.setCustomId(JSON.stringify({ action: 'claim' }))
 						.setStyle(ButtonStyle.Secondary)
-						.setEmoji(this.getGuildEmoji(ticket.guild.id || ticket.guildId, 'ezz_claim', getMessage('buttons.claim.emoji')))
+						.setEmoji(this.normalizeEmoji(this.getGuildEmoji(ticket.guild.id || ticket.guildId, 'ezz_claim', getMessage('buttons.claim.emoji'))))
 						.setLabel(getMessage('buttons.claim.text')),
 				);
 			}
@@ -1297,7 +1303,7 @@ module.exports = class TicketManager {
 			buttons.push(
 				new ButtonBuilder()
 					.setStyle(ButtonStyle.Link)
-					.setEmoji(transcriptEmoji)
+					.setEmoji(this.normalizeEmoji(transcriptEmoji))
 					.setLabel(getMessage('buttons.transcript.text'))
 					.setURL(viewUrl),
 			);
@@ -1309,7 +1315,7 @@ module.exports = class TicketManager {
 		buttons.push(
 			new ButtonBuilder()
 				.setStyle(ButtonStyle.Link)
-				.setEmoji(rateEmoji)
+				.setEmoji(this.normalizeEmoji(rateEmoji))
 				.setLabel('Rate')
 				.setURL(rateUrl),
 		);
