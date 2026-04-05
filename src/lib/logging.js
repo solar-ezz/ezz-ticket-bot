@@ -227,15 +227,25 @@ async function logRatingEvent(client, {
 		? cleanCodeBlockContent(trimmedComment).slice(0, 1024)
 		: '*No comment provided*';
 
+	const formatEmojiLabel = async (name, text, fallback) => {
+		const custom = await client.tickets?.getGuildEmojiAsync?.(guildId, name, fallback);
+		if (custom && custom.id) return `<:${custom.name}:${custom.id}> ${text}`;
+		return `${custom || fallback || ''} ${text}`.trim();
+	};
+
+	const ticketIdLabel = await formatEmojiLabel('ezz_id', 'Ticket ID', '🆔');
+	const ratingLabel = await formatEmojiLabel('ezz_rate', 'Rating', '⭐');
+	const commentLabel = '💬 Comment';
+
 	const embed = new EmbedBuilder()
 		.setColor('DarkAqua')
 		.setTitle('New Rating')
 		.setDescription(`<@${userId}> has rated the bot`)
 		.addFields([
 			{ name: 'Ticket', value: ticketLabel },
-			{ name: ':ezz_id: Ticket ID', value: `\`${record.id}\`` },
-			{ name: ':ezz_rate: Rating', value: `${rating ?? 'N/A'}/5`, inline: true },
-			{ name: ':speech_left: Comment', value: commentValue },
+			{ name: ticketIdLabel, value: `\`${record.id}\`` },
+			{ name: ratingLabel, value: `${rating ?? 'N/A'}/5`, inline: true },
+			{ name: commentLabel, value: commentValue },
 		]);
 
 	if (member) {
