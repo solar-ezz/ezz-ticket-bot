@@ -219,8 +219,8 @@ async function logRatingEvent(client, {
 	client.log.info.tickets(`${member?.user?.tag || userId} rated ticket ${record.id}`);
 
 	const ticketLabel = record.category?.name
-		? `${record.category.name} **#${record.number ?? '—'}**`
-		: `Ticket **#${record.number ?? '—'}**`;
+		? `${record.category.name} **#${record.number ?? '-'}**`
+		: `Ticket **#${record.number ?? '-'}**`;
 
 	const trimmedComment = comment?.trim();
 	const commentValue = trimmedComment?.length
@@ -233,9 +233,9 @@ async function logRatingEvent(client, {
 		.setDescription(`<@${userId}> has rated the bot`)
 		.addFields([
 			{ name: 'Ticket', value: ticketLabel },
-			{ name: 'Ticket ID', value: `\`${record.id}\`` },
-			{ name: 'Rating', value: `${rating ?? 'N/A'}/5`, inline: true },
-			{ name: 'Comment', value: commentValue },
+			{ name: ':ezz_id: Ticket ID', value: `\`${record.id}\`` },
+			{ name: ':ezz_rate: Rating', value: `${rating ?? 'N/A'}/5`, inline: true },
+			{ name: ':speech_left: Comment', value: commentValue },
 		]);
 
 	if (member) {

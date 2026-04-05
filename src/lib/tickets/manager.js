@@ -1413,5 +1413,47 @@ module.exports = class TicketManager {
 			userId: closedBy || this.client.user.id,
 		});
 
+		if (!ticket.feedback) {
+			setTimeout(async () => {
+				try {
+					const latest = await this.client.prisma.ticket.findUnique({
+						include: {
+							category: true,
+							feedback: true,
+							guild: true,
+						},
+						where: { id: ticket.id },
+					});
+					if (!latest || latest.feedback) return;
+					const user = await this.client.users.fetch(latest.createdById);
+					const reminderEmbed = new ExtendedEmbedBuilder({
+						iconURL: guild?.iconURL(),
+						text: latest.guild.footer,
+					})
+						.setColor(latest.guild.primaryColour)
+						.setTitle('Rate your ticket')
+						.setDescription('Please rate your ticket to help us improve.')
+						.addFields([
+							{ name: 'Ticket', value: `${latest.category?.name || 'Ticket'} **#${latest.number ?? '-'}**` },
+							{ name: 'Ticket ID', value: `\`${latest.id}\`` },
+						]);
+					const rateUrl = `${baseUrl()}/rate?ticket=${latest.id}`;
+					const row = new ActionRowBuilder().addComponents(
+						new ButtonBuilder()
+							.setStyle(ButtonStyle.Link)
+							.setEmoji('⭐')
+							.setLabel('Rate')
+							.setURL(rateUrl),
+					);
+					await user.send({
+						components: [row],
+						embeds: [reminderEmbed],
+					});
+				} catch (error) {
+					this.client.log.error(error);
+				}
+			}, ms('10m'));
+		}
+
 	}
 };
