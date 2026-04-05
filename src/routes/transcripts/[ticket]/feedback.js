@@ -1,5 +1,6 @@
 const { fetchTranscriptTicket } = require('../../../lib/transcript');
 const { decrypt, encrypt } = require('../../../lib/crypto');
+const { logRatingEvent } = require('../../../lib/logging');
 
 module.exports.get = () => ({
 	handler: async (req, res) => {
@@ -98,6 +99,13 @@ module.exports.post = () => ({
 				},
 			},
 			where: { id: ticketId },
+		});
+
+		await logRatingEvent(client, {
+			comment: commentRaw,
+			rating,
+			ticket,
+			userId: user.id,
 		});
 
 		return res.redirect(`/transcripts/${ticketId}?rated=1`);
