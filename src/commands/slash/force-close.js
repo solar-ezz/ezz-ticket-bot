@@ -8,7 +8,7 @@ const {
 	MessageFlags,
 } = require('discord.js');
 const ExtendedEmbedBuilder = require('../../lib/embed');
-const { isStaff } = require('../../lib/users');
+const { PermissionsBitField } = require('discord.js');
 const ms = require('ms');
 
 module.exports = class ForceCloseSlashCommand extends SlashCommand {
@@ -64,7 +64,8 @@ module.exports = class ForceCloseSlashCommand extends SlashCommand {
 		const getMessage = client.i18n.getLocale(settings.locale);
 		let ticket;
 
-		if (!(await isStaff(interaction.guild, interaction.user.id))) { 
+		const member = await interaction.guild.members.fetch(interaction.user.id);
+		if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) { 
 			return await interaction.editReply({
 				embeds: [
 					new ExtendedEmbedBuilder({
