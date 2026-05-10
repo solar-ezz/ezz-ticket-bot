@@ -7,6 +7,7 @@ const {
 	sendToHouston,
 } = require('../../lib/stats');
 const handleStaleTickets = require('../../lib/stale');
+const RestartCommand = require('../../commands/slash/restart');
 
 module.exports = class extends Listener {
 	constructor(client, options) {
@@ -27,6 +28,8 @@ module.exports = class extends Listener {
 		await client.initAfterLogin();
 
 		await sync(client);
+
+		await RestartCommand.sendRestartOverview(client);
 
 		if (process.env.PUBLISH_COMMANDS === 'true') {
 			client.log.info('Automatically publishing commands...');
