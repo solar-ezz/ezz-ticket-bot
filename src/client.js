@@ -43,7 +43,41 @@ module.exports = class Client extends FrameworkClient {
 
 		this.config = {};
 		this.log = {};
+		this.consoleLogs = [];
+		this.setupConsoleCapture();
 		this.init();
+	}
+
+	setupConsoleCapture() {
+		const maxLogs = 500;
+		const originalLog = console.log;
+		const originalWarn = console.warn;
+		const originalError = console.error;
+
+		const captureLog = (level, args) => {
+			const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+			const timestamp = new Date().toISOString();
+			this.consoleLogs.push(`[${timestamp}] [${level}] ${message}`);
+			if (this.consoleLogs.length > maxLogs) {
+				this.consoleLogs.shift();
+			}
+		};
+
+		console.log = (...args) => {
+			originalLog(...args);
+			captureLog('LOG', args);
+		};
+
+		console.warn = (...args) => {
+			originalWarn(...args);
+			captureLog('WARN', args);
+		};
+
+		console.error = (...args) => {
+			originalError(...args);
+			captureLog('ERROR', args);
+		};
+	}
 	}
 
 	async init(reload = false) {

@@ -1,7 +1,7 @@
 const { SlashCommand } = require('@eartharoid/dbf');
 const { PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { spawn } = require('child_process');
-const { writeFile, readFile, unlink } = require('fs/promises');
+const { writeFile, readFile, unlink, mkdir } = require('fs/promises');
 const { join } = require('path');
 const { version } = require('../../../package.json');
 
@@ -52,6 +52,7 @@ module.exports = class RestartSlashCommand extends SlashCommand {
 
 		try {
 			const tmpDir = join(process.cwd(), 'tmp');
+			await mkdir(tmpDir, { recursive: true });
 			await writeFile(RESTART_FILE, JSON.stringify(restartState), { flag: 'w' });
 		} catch (error) {
 			this.client.log.error(error);
@@ -76,10 +77,16 @@ module.exports = class RestartSlashCommand extends SlashCommand {
 			const state = JSON.parse(data);
 
 			const guild = await client.guilds.fetch(state.guildId).catch(() => null);
-			if (!guild) return;
+			if (!guild) {
+				client.log.warn('Could not fetch guild for restart overview');
+				return;
+			}
 
 			const channel = await guild.channels.fetch(state.channelId).catch(() => null);
-			if (!channel || !channel.isSendable?.()) return;
+			if (!channel || !channel.isSendable?.()) {
+				client.log.warn('Could not fetch channel or channel not sendable for restart overview');
+				return;
+			}
 
 			const user = await client.users.fetch(state.userId).catch(() => null);
 			const userName = user ? user.username : 'Unknown User';
@@ -104,7 +111,9 @@ module.exports = class RestartSlashCommand extends SlashCommand {
 
 			await unlink(RESTART_FILE).catch(() => null);
 		} catch (error) {
-			client.log.debug(error);
+			if (error.code !== 'ENOENT') {
+				client.log.warn('Error sending restart overview:', error);
+			}
 		}
 	}
 };
