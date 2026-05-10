@@ -1,5 +1,6 @@
 const { Modal } = require('@eartharoid/dbf');
 const ExtendedEmbedBuilder = require('../lib/embed');
+const { logRatingEvent } = require('../lib/logging');
 const { MessageFlags } = require('discord.js');
 const { pools } = require('../lib/threads');
 
@@ -23,8 +24,8 @@ module.exports = class FeedbackModal extends Modal {
 		await interaction.deferReply();
 
 		const comment = interaction.fields.getTextInputValue('comment');
-		let rating = parseInt(interaction.fields.getTextInputValue('rating')) || null; // any integer, or null if NaN
-		rating = Math.min(Math.max(rating, 1), 5); // clamp between 1 and 5 (0 and null become 1, 6 becomes 5)
+		let rating = parseInt(interaction.fields.getTextInputValue('rating')) || null;
+		rating = Math.min(Math.max(rating, 1), 5);
 
 		const data = {
 			comment: comment?.length > 0 ? await crypto.queue(w => w.encrypt(comment)) : null,
@@ -41,8 +42,15 @@ module.exports = class FeedbackModal extends Modal {
 					},
 				},
 			},
-			include: { guild: true },
+			include: { category: true, guild: true },
 			where: { id: interaction.channel.id },
+		});
+
+		await logRatingEvent(client, {
+			comment,
+			rating,
+			ticket,
+			userId: interaction.user.id,
 		});
 
 

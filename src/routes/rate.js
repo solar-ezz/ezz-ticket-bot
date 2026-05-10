@@ -1,4 +1,5 @@
 const { decrypt, encrypt } = require('../lib/crypto');
+const { logRatingEvent } = require('../lib/logging');
 
 const escapeHtml = value => String(value ?? '')
 	.replace(/&/g, '&amp;')
@@ -287,7 +288,7 @@ module.exports.get = () => ({
 		if (!ticketId) return res.code(400).send('Missing ticket');
 
 		const ticket = await client.prisma.ticket.findUnique({
-			include: { category: true, feedback: true },
+			include: { category: true, feedback: true, guild: true },
 			where: { id: ticketId },
 		});
 		if (!ticket) return res.code(404).send('Ticket not found');
@@ -348,7 +349,7 @@ module.exports.post = () => ({
 		if (!ticketId) return res.code(400).send('Missing ticket');
 
 		const ticket = await client.prisma.ticket.findUnique({
-			include: { feedback: true },
+			include: { category: true, feedback: true, guild: true },
 			where: { id: ticketId },
 		});
 		if (!ticket) return res.code(404).send('Ticket not found');
@@ -375,6 +376,13 @@ module.exports.post = () => ({
 					},
 				},
 			},
+		});
+
+		await logRatingEvent(client, {
+			comment: rawComment,
+			rating,
+			ticket,
+			userId: user.id,
 		});
 
 		res.header('Content-Type', 'text/html; charset=utf-8');

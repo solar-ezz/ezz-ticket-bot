@@ -16,15 +16,15 @@ module.exports.get = () => ({
 
 		const params = {
 			client_id: client.user.id,
-			prompt: 'none',
-			redirect_uri: `${process.env.HTTP_EXTERNAL}/auth/callback`, // if not set defaults to first allowed
+			prompt: 'login',
+			redirect_uri: `${process.env.HTTP_EXTERNAL}/auth/callback`,
 			response_type: 'code',
-			scope: 'guilds identify',
+			scope: 'guilds identify guilds.members.read',
 			state: state.get('secret'),
 		};
 
 		if (req.query.invite !== undefined) {
-			params.prompt = 'consent'; // already implied by the bot scope
+			params.prompt = 'consent';
 			params.scope = 'applications.commands applications.commands.permissions.update bot ' + params.scope;
 			params.integration_type = '0';
 			params.permissions = '268561488';
@@ -32,7 +32,7 @@ module.exports.get = () => ({
 				params.guild_id = req.query.guild;
 				params.disable_guild_select = 'true';
 			}
-		} else if (req.query.role === 'admin') { // invite implies admin already
+		} else if (req.query.role === 'admin') {
 			params.scope = 'applications.commands.permissions.update ' + params.scope;
 		}
 

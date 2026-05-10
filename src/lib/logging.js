@@ -190,6 +190,74 @@ async function logTicketEvent(client, {
 	});
 }
 
+async function logRatingEvent(client, {
+	ticket, userId, rating, comment,
+}) {
+	const record = ticket?.guild
+		? ticket
+		: await client.prisma.ticket.findUnique({
+			include: { category: true, guild: true },
+			where: { id: ticket?.id || ticket },
+		});
+	if (!record) return;
+
+	const guildId = record.guild?.id || record.guildId;
+	const guild = client.guilds.cache.get(guildId);
+	if (!guild) return;
+
+	const logChannelId = record.guild?.logChannel ?? null;
+	if (!logChannelId) return;
+	const channel = client.channels.cache.get(logChannelId);
+	if (!channel) return;
+
+	let member = null;
+	try {
+		member = await guild.members.fetch(userId);
+	} catch {
+	}
+
+	client.log.info.tickets(`${member?.user?.tag || userId} rated ticket ${record.id}`);
+
+	const ticketLabel = record.category?.name
+		? `${record.category.name} **#${record.number ?? '-'}**`
+		: `Ticket **#${record.number ?? '-'}**`;
+
+	const trimmedComment = comment?.trim();
+	const commentValue = trimmedComment?.length
+		? cleanCodeBlockContent(trimmedComment).slice(0, 1024)
+		: '*No comment provided*';
+
+	const formatEmojiLabel = async (name, text, fallback) => {
+		const custom = await client.tickets?.getGuildEmojiAsync?.(guildId, name, fallback);
+		if (custom && custom.id) return `<:${custom.name}:${custom.id}> ${text}`;
+		return `${custom || fallback || ''} ${text}`.trim();
+	};
+
+	const ticketIdLabel = await formatEmojiLabel('ezz_id', 'Ticket ID', '🆔');
+	const ratingLabel = await formatEmojiLabel('ezz_rate', 'Rating', '⭐');
+	const commentLabel = '💬 Comment';
+
+	const embed = new EmbedBuilder()
+		.setColor('DarkAqua')
+		.setTitle('New Rating')
+		.setDescription(`<@${userId}> has rated the bot`)
+		.addFields([
+			{ name: 'Ticket', value: ticketLabel },
+			{ name: ticketIdLabel, value: `\`${record.id}\`` },
+			{ name: ratingLabel, value: `${rating ?? 'N/A'}/5`, inline: true },
+			{ name: commentLabel, value: commentValue },
+		]);
+
+	if (member) {
+		embed.setAuthor({
+			iconURL: member.displayAvatarURL(),
+			name: member.displayName,
+		});
+	}
+
+	return await channel.send({ embeds: [embed] });
+}
+
 /**
  * @param {import("client")} client
  * @param {object} details
@@ -247,6 +315,7 @@ module.exports = {
 	getLogChannel,
 	getSUID,
 	logAdminEvent,
+	logRatingEvent,
 	logMessageEvent,
 	logTicketEvent,
 };
