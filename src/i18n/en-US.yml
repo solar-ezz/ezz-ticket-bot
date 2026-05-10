@@ -25,3 +25,16 @@ buttons:
     text: Reject
   transcript:
     emoji: 📄
+commands:
+  slash:
+    console:
+      description: View recent console output
+      name: console
+    restart:
+      description: Restart the bot
+      name: restart
+      options:
+        update:
+          description: Update dependencies during restart
+          name: update
+

@@ -6,11 +6,14 @@ const CONSOLE_ROLE_ID = '1488215073460850740';
 
 module.exports = class ConsoleSlashCommand extends SlashCommand {
 	constructor(client, options) {
+		const name = 'console';
 		super(client, {
 			...options,
-			name: 'console',
-			description: 'View recent console output.',
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
+			name,
+			nameLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.name`),
 			defaultMemberPermissions: PermissionsBitField.Flags.Administrator,
 		});
 	}

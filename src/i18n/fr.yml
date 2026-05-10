@@ -119,6 +119,9 @@ commands:
         description: Seuls les membres de l'équipe peuvent s'approprier un 
           ticket.
         title: ❌ Erreur
+    console:
+      description: Afficher la sortie récente de la console
+      name: console
     help:
       name: aide
       response:
@@ -172,6 +175,13 @@ commands:
     release:
       name: relâcher
       description: Relâcher (ne plus s'approprier) un ticket
+    restart:
+      description: Redémarrer le bot
+      name: redémarrer
+      options:
+        update:
+          description: Mettre à jour les dépendances lors du redémarrage
+          name: mise à jour
     remove:
       description: Retirer un membre d'un ticket
       name: retirer

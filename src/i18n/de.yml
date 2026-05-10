@@ -151,6 +151,9 @@ commands:
       not_staff:
         title: ❌ Fehler
         description: Nur Teammitglieder können Tickets übernehmen.
+    console:
+      description: Letzte Konsolenausgabe anzeigen
+      name: konsole
     priority:
       options:
         priority:
@@ -255,6 +258,13 @@ commands:
     release:
       description: Ein Ticket freigeben
       name: freigeben
+    restart:
+      description: Den Bot neu starten
+      name: neu starten
+      options:
+        update:
+          description: Abhängigkeiten während des Neustarts aktualisieren
+          name: update
     rename:
       description: Einen Ticketkanal umbenennen
       error: Während der Umbenennung des Kanals ist ein Fehler aufgetreten.

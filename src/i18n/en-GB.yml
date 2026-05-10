@@ -70,6 +70,9 @@ commands:
       not_staff:
         description: Only staff members can claim tickets.
         title: ❌ Error
+    console:
+      description: View recent console output
+      name: console
     close:
       description: Request a ticket to be closed
       invalid_time:
@@ -173,6 +176,13 @@ commands:
     release:
       description: Release (unclaim) a ticket
       name: release
+    restart:
+      description: Restart the bot
+      name: restart
+      options:
+        update:
+          description: Update dependencies during restart
+          name: update
     remove:
       description: Remove a member from a ticket
       name: remove

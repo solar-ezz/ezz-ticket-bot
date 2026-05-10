@@ -1,5 +1,5 @@
 const { SlashCommand } = require('@eartharoid/dbf');
-const { PermissionsBitField, EmbedBuilder } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 const { spawn } = require('child_process');
 const { writeFile, readFile, unlink, mkdir } = require('fs/promises');
 const { join } = require('path');
@@ -9,20 +9,27 @@ const RESTART_FILE = join(process.cwd(), 'tmp', '.restart-state.json');
 
 module.exports = class RestartSlashCommand extends SlashCommand {
 	constructor(client, options) {
+		const name = 'restart';
 		super(client, {
 			...options,
-			name: 'restart',
-			description: 'Restart the bot.',
+			description: client.i18n.getMessage(null, `commands.slash.${name}.description`),
+			descriptionLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.description`),
 			dmPermission: false,
+			name,
+			nameLocalizations: client.i18n.getAllMessages(`commands.slash.${name}.name`),
 			defaultMemberPermissions: PermissionsBitField.Flags.Administrator,
 			options: [
 				{
 					type: 5,
 					name: 'update',
-					description: 'Update dependencies during restart.',
+					description: client.i18n.getMessage(null, `commands.slash.${name}.options.update.description`),
 					required: false,
 				},
-			],
+			].map(option => {
+				option.descriptionLocalizations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.description`);
+				option.nameLocalizations = client.i18n.getAllMessages(`commands.slash.${name}.options.${option.name}.name`);
+				return option;
+			}),
 		});
 	}
 
