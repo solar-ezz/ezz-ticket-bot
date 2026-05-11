@@ -78,7 +78,6 @@ module.exports = class Client extends FrameworkClient {
 			captureLog('ERROR', args);
 		};
 	}
-	}
 
 	async init(reload = false) {
 		const locales = {};
