@@ -1,5 +1,5 @@
 const { SlashCommand } = require('@eartharoid/dbf');
-const { PermissionsBitField } = require('discord.js');
+const { PermissionsBitField, EmbedBuilder } = require('discord.js');
 const { spawn } = require('child_process');
 const { writeFile, readFile, unlink, mkdir } = require('fs/promises');
 const { join } = require('path');

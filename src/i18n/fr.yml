@@ -31,7 +31,7 @@ buttons:
 commands:
   message:
     pin:
-      name: Épingler le message
+      name: epingler-le-message
       not_pinnable:
         title: ❌ Erreur
         description: "Ce message ne peut être épinglé.\nVeuillez demander à un administrateur
@@ -44,7 +44,7 @@ commands:
         description: Vous pouvez seulement épingler des messages dans les salons
           de tickets.
     create:
-      name: Transformer ce message en ticket
+      name: transformer-en-ticket
   slash:
     add:
       not_staff:
@@ -82,7 +82,7 @@ commands:
         category:
           description: Fermer tout les tickets dans la catégorie spécifiée (peut
             être utilisée avec `time`)
-          name: catégorie
+          name: categorie
         time:
           description: Clôturer tous les billets qui ont été inactifs pendant le
             temps spécifié
@@ -91,7 +91,7 @@ commands:
           name: raison
           description: La raison de la fermeture du/des ticket(s)
       description: Forcer la clôture d'un ticket
-      name: fermeture-forcée
+      name: fermeture-forcee
       no_tickets:
         description: Il n'y as pas de tickets ouverts inactifs depuis plus de 
           `{time}`.
@@ -114,7 +114,7 @@ commands:
         - ✅ Fermeture de %d tickets
     claim:
       description: S'approprier un ticket
-      name: réclamer
+      name: reclamer
       not_staff:
         description: Seuls les membres de l'équipe peuvent s'approprier un 
           ticket.
@@ -140,10 +140,10 @@ commands:
       description: Déplacer un ticket dans une autre catégorie
       options:
         category:
-          name: catégorie
+          name: categorie
           description: La catégorie dans laquelle déplacer le ticket
       moved: 🗃️ {by} a déplacé ce ticket de **{from}** vers **{to}**.
-      name: déplacer
+      name: deplacer
       not_staff:
         description: Seuls les membres de l'équipe peuvent déplacer des tickets.
         title: ❌ Erreur
@@ -153,9 +153,9 @@ commands:
       options:
         references:
           description: Le numéro d'un ticket associé
-          name: références
+          name: references
     priority:
-      name: priorité
+      name: priorite
       options:
         priority:
           choices:
@@ -163,7 +163,7 @@ commands:
             HIGH: 🔴 Haute
             LOW: 🟢 Basse
           description: La priorité du ticket
-          name: priorité
+          name: priorite
       description: Définir la priorité d'un ticket
       success:
         title: ✅ Priorité définie
@@ -173,15 +173,15 @@ commands:
         description: Seuls les membres de l'équipe peuvent changer la priorité 
           d'un ticket.
     release:
-      name: relâcher
+      name: relacher
       description: Relâcher (ne plus s'approprier) un ticket
     restart:
       description: Redémarrer le bot
-      name: redémarrer
+      name: redemarrer
       options:
         update:
           description: Mettre à jour les dépendances lors du redémarrage
-          name: mise à jour
+          name: mise_a_jour
     remove:
       description: Retirer un membre d'un ticket
       name: retirer
@@ -250,7 +250,7 @@ commands:
         title: ❌ Erreur
     transfer:
       description: Transférer la propriété d'un ticket à un autre membre
-      name: transférer
+      name: transferer
       transferred_from: '{user} a transféré ce ticket de {from} à {to}.'
       options:
         member:
@@ -262,7 +262,7 @@ commands:
       description: Changer le sujet d'un ticket
   user:
     create:
-      name: Créer un ticket pour un membre
+      name: creer-un-ticket-pour-un-membre
 misc:
   update:
     description: "> [Voir`{version}` sur GitHub]({github})\n> [Notes de mises à jour]({changelog})\n\
