@@ -33,10 +33,16 @@ function makeDiff({
 		if (key === 'createdAt') continue; // object-diffy doesn't like dates
 		const from = exists(diff[key].from) ? `- ${String(diff[key].from).replace(/\n/g, '\\n')}\n` : '';
 		const to = exists(diff[key].to) ? `+ ${String(diff[key].to).replace(/\n/g, '\\n')}\n` : '';
+		let diffContent = cleanCodeBlockContent(from + to);
+		if (diffContent.length > 1000) {
+			diffContent = diffContent.slice(0, 997) + '...';
+		}
+		let fieldName = key.replace(uuidRegex, $1 => $1.split('-')[0]);
+		if (fieldName.length > 256) fieldName = fieldName.slice(0, 253) + '...';
 		fields.push({
 			inline: true,
-			name: key.replace(uuidRegex, $1 => $1.split('-')[0]),
-			value: `\`\`\`diff\n${cleanCodeBlockContent(from + to)}\n\`\`\``,
+			name: fieldName,
+			value: `\`\`\`diff\n${diffContent}\n\`\`\``,
 		});
 	}
 	return fields;

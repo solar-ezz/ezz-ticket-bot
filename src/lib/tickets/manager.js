@@ -1450,7 +1450,11 @@ module.exports = class TicketManager {
 						embeds: [reminderEmbed],
 					});
 				} catch (error) {
-					this.client.log.error(error);
+					if (error?.code === 50278) {
+						this.client.log.warn('Failed to DM ticket creator for rate reminder: no mutual guilds');
+					} else {
+						this.client.log.error(error);
+					}
 				}
 			}, ms('10m'));
 		}

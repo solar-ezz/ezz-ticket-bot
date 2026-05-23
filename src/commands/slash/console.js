@@ -19,7 +19,9 @@ module.exports = class ConsoleSlashCommand extends SlashCommand {
 	}
 
 	async run(interaction) {
-		if (!interaction.member.roles.has(CONSOLE_ROLE_ID)) {
+		const roles = interaction.member.roles;
+		const hasRole = roles.cache ? roles.cache.has(CONSOLE_ROLE_ID) : roles.includes && roles.includes(CONSOLE_ROLE_ID);
+		if (!hasRole) {
 			return interaction.reply({
 				content: 'You do not have permission to use this command.',
 				flags: MessageFlags.Ephemeral,
