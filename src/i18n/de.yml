@@ -32,7 +32,7 @@ buttons:
 commands:
   message:
     pin:
-      name: Nachricht anheften
+      name: nachricht-anheften
       not_pinnable:
         description: "Diese Nachricht kann nicht angeheftet werden.\nBitte einen Administrator,
           die Berechtigungen des Bots zu überprüfen.\n"
@@ -44,7 +44,7 @@ commands:
         description: Die Nachricht wurde angeheftet.
         title: ✅ Nachricht angeheftet
     create:
-      name: Ticket aus Nachricht erstellen
+      name: ticket-aus-nachricht-erstellen
   slash:
     add:
       added: ➡️ {added} wurde von {by} zum Ticket hinzugefügt.
@@ -63,7 +63,7 @@ commands:
         description: '{member} wurde zu {ticket} hinzugefügt.'
         title: ✅ Hinzugefügt
       description: Benutzer zu einem Ticket hinzufügen
-      name: hinzufügen
+      name: hinzufuegen
     help:
       response:
         links:
@@ -107,7 +107,7 @@ commands:
           `{time}`:\n{tickets} inaktiv waren.\n"
         title: ❓Bist du sicher?
       description: Ein Ticket zwangsweise schließen
-      name: schließen-erzwingen
+      name: schliessen-erzwingen
       closed_one:
         description: Das Ticket wird in ein paar Sekunden gelöscht.
         title: ✅ Ticket geschlossen
@@ -125,7 +125,7 @@ commands:
           name: grund
           description: Der Grund für das Schließen des Tickets
       description: Beantrage, dass ein Ticket geschlossen wird
-      name: schließen
+      name: schliessen
     move:
       name: verschieben
       description: Verschiebe ein Ticket in eine andere Kategorie
@@ -147,7 +147,7 @@ commands:
           description: Die Nummer eines zugehörigen Tickets
     claim:
       description: Ticket übernehmen
-      name: übernehmen
+      name: uebernehmen
       not_staff:
         title: ❌ Fehler
         description: Nur Teammitglieder können Tickets übernehmen.
@@ -158,7 +158,7 @@ commands:
       options:
         priority:
           description: Die Priorität des Tickets
-          name: priorität
+          name: prioritaet
           choices:
             HIGH: 🔴 Hoch
             LOW: 🟢 Niedrig
@@ -167,7 +167,7 @@ commands:
         title: ✅ Priorität gesetzt
         description: Die Priorität dieses Tickets wurde auf `{priority}` 
           gesetzt.
-      name: priorität
+      name: prioritaet
       description: Lege die Priorität eines Tickets fest
       not_staff:
         title: ❌ Fehler
@@ -234,7 +234,7 @@ commands:
         description: Nur Teammitglieder können die Abschrift eines anderen 
           Tickets lesen.
     transfer:
-      name: übertragen
+      name: uebertragen
       transferred_from: 📨 {user} hat dieses Ticket von {from} auf {to} 
         übertragen.
       options:
@@ -248,7 +248,7 @@ commands:
     tag:
       options:
         for:
-          name: für
+          name: fuer
           description: Der Benutzer, an den der Tag gerichtet werden soll
         tag:
           name: tag
@@ -260,7 +260,7 @@ commands:
       name: freigeben
     restart:
       description: Den Bot neu starten
-      name: neu starten
+      name: neu-starten
       options:
         update:
           description: Abhängigkeiten während des Neustarts aktualisieren
@@ -288,7 +288,7 @@ commands:
         title: Kanal umbenannt
   user:
     create:
-      name: Ticket für Benutzer erstellen
+      name: ticket-fuer-benutzer-erstellen
       prompt:
         description: Drücke auf die Schaltfläche unten, um ein Ticket zu 
           erstellen.

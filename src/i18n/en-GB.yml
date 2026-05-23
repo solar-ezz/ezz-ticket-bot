@@ -32,9 +32,9 @@ buttons:
 commands:
   message:
     create:
-      name: Create ticket from message
+      name: create-ticket-from-message
     pin:
-      name: Pin message
+      name: pin-message
       not_pinnable:
         description: |
           This message can't be pinned.
@@ -287,7 +287,7 @@ commands:
       transferred_from: 📨 {user} has transferred this ticket from {from} to {to}.
   user:
     create:
-      name: Create ticket for user
+      name: create-ticket-for-user
       not_staff:
         description: Only staff members can open tickets for other members.
         title: ❌ Error
