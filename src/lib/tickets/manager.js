@@ -24,6 +24,7 @@ const { createTranscriptUrls, baseUrl } = require('../transcript');
 const { join } = require('path');
 const fs = require('fs');
 
+const EMOJI_SOURCE_GUILD = '1376192215029649409';
 const { getSUID } = require('../logging');
 const {
 	getAverageTimes, getAverageRating,
@@ -53,6 +54,21 @@ module.exports = class TicketManager {
 		const cacheKey = `${guildId}:${name}`;
 		if (this.$emojiCache.has(cacheKey)) return this.$emojiCache.get(cacheKey);
 
+		const sourceKey = `${EMOJI_SOURCE_GUILD}:${name}`;
+		if (this.$emojiCache.has(sourceKey)) {
+			const v = this.$emojiCache.get(sourceKey);
+			this.$emojiCache.set(cacheKey, v);
+			return v;
+		}
+
+		const sourceGuild = this.client.guilds.cache.get(EMOJI_SOURCE_GUILD);
+		const foundSource = sourceGuild?.emojis?.cache?.find(e => e.name === name);
+		if (foundSource) {
+			this.$emojiCache.set(sourceKey, foundSource);
+			this.$emojiCache.set(cacheKey, foundSource);
+			return foundSource;
+		}
+
 		const guild = this.client.guilds.cache.get(guildId);
 		const found = guild?.emojis?.cache?.find(e => e.name === name);
 		const value = found || fallback;
@@ -65,14 +81,34 @@ module.exports = class TicketManager {
 		const cacheKey = `${guildId}:${name}`;
 		if (this.$emojiCache.has(cacheKey)) return this.$emojiCache.get(cacheKey);
 
+		const sourceKey = `${EMOJI_SOURCE_GUILD}:${name}`;
+		if (this.$emojiCache.has(sourceKey)) {
+			const v = this.$emojiCache.get(sourceKey);
+			this.$emojiCache.set(cacheKey, v);
+			return v;
+		}
+
+		const sourceGuild = this.client.guilds.cache.get(EMOJI_SOURCE_GUILD);
+		let foundSource = sourceGuild?.emojis?.cache?.find(e => e.name === name);
+		if (!foundSource && sourceGuild?.emojis?.fetch) {
+			try {
+				await sourceGuild.emojis.fetch();
+				foundSource = sourceGuild.emojis.cache.find(e => e.name === name);
+			} catch {}
+		}
+		if (foundSource) {
+			this.$emojiCache.set(sourceKey, foundSource);
+			this.$emojiCache.set(cacheKey, foundSource);
+			return foundSource;
+		}
+
 		const guild = this.client.guilds.cache.get(guildId);
 		let found = guild?.emojis?.cache?.find(e => e.name === name);
 		if (!found && guild?.emojis?.fetch) {
 			try {
 				await guild.emojis.fetch();
 				found = guild.emojis.cache.find(e => e.name === name);
-			} catch {
-			}
+			} catch {}
 		}
 		const value = found || fallback;
 		this.$emojiCache.set(cacheKey, value);

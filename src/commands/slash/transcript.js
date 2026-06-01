@@ -100,15 +100,23 @@ module.exports = class TranscriptSlashCommand extends SlashCommand {
 
 		const getMessage = client.i18n.getLocale(ticket.guild.locale);
 		const resolveGuildEmoji = async (name, fallback) => {
+			const EMOJI_SOURCE_GUILD = '1376192215029649409';
+			const sourceGuild = client.guilds.cache.get(EMOJI_SOURCE_GUILD);
+			let found = sourceGuild?.emojis?.cache?.find(e => e.name === name);
+			if (!found && sourceGuild?.emojis?.fetch) {
+				try {
+					await sourceGuild.emojis.fetch();
+					found = sourceGuild.emojis.cache.find(e => e.name === name);
+				} catch {}
+			}
+			if (found) return found || fallback;
 			const guild = client.guilds.cache.get(ticket.guildId || ticket.guild.id);
-			let found = guild?.emojis?.cache?.find(e => e.name === name);
+			found = guild?.emojis?.cache?.find(e => e.name === name);
 			if (!found && guild?.emojis?.fetch) {
 				try {
 					await guild.emojis.fetch();
 					found = guild.emojis.cache.find(e => e.name === name);
-				} catch {
-					
-				}
+				} catch {}
 			}
 			return found || fallback;
 		};
