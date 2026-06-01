@@ -1293,38 +1293,37 @@ module.exports = class TicketManager {
 			const cacheKey = `${guild.id}:${emojiName}`;
 			if (this.$emojiCache.has(cacheKey)) return this.$emojiCache.get(cacheKey);
 
-			const aliasName = {
-				stamp: 'ezz_claim',
-			};
+			const aliasName = { stamp: 'ezz_claim' };
 
-			const existing = guild.emojis.cache.find(e => e.name === `ezz_${emojiName}` || e.name === aliasName[emojiName]);
-			if (existing) {
-				this.$emojiCache.set(cacheKey, existing);
-				return existing;
+			const sourceGuild = this.client.guilds.cache.get(EMOJI_SOURCE_GUILD);
+			let existingSource = sourceGuild?.emojis?.cache?.find(e => e.name === `ezz_${emojiName}` || e.name === aliasName[emojiName]);
+			if (!existingSource && sourceGuild?.emojis?.fetch) {
+				try {
+					await sourceGuild.emojis.fetch();
+					existingSource = sourceGuild.emojis.cache.find(e => e.name === `ezz_${emojiName}` || e.name === aliasName[emojiName]);
+				} catch {}
+			}
+			if (existingSource) {
+				this.$emojiCache.set(`${EMOJI_SOURCE_GUILD}:${emojiName}`, existingSource);
+				this.$emojiCache.set(cacheKey, existingSource);
+				return existingSource;
 			}
 
-			const fileAlias = {
-				stamp: 'claim',
-			};
-
+			const fileAlias = { stamp: 'claim' };
 			const filePath = join(process.cwd(), 'embed-emojis', `${fileAlias[emojiName] || emojiName}.png`);
-			const canUseCustom = fs.existsSync(filePath)
-				&& guild.members.me?.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers);
-
-			if (!canUseCustom) {
+			const canUseCustomSource = fs.existsSync(filePath) && sourceGuild?.members?.me?.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers);
+			if (!canUseCustomSource) {
 				this.$emojiCache.set(cacheKey, null);
 				return null;
 			}
 
 			try {
-				const created = await guild.emojis.create({
-					attachment: filePath,
-					name: `ezz_${emojiName}`,
-				});
+				const created = await sourceGuild.emojis.create({ attachment: filePath, name: `ezz_${emojiName}` });
+				this.$emojiCache.set(`${EMOJI_SOURCE_GUILD}:${emojiName}`, created);
 				this.$emojiCache.set(cacheKey, created);
 				return created;
 			} catch (error) {
-				this.client.log.warn(`Failed to use custom emoji ${emojiName}: ${error?.message || error}`);
+				this.client.log.warn(`Failed to create emoji in source guild ${emojiName}: ${error?.message || error}`);
 				this.$emojiCache.set(cacheKey, null);
 				return null;
 			}
