@@ -1,7 +1,11 @@
 const fastify = require('fastify')({ trustProxy: process.env.HTTP_TRUST_PROXY === 'true' });
 const { short } = require('leeks.js');
-const { join, resolve } = require('path');
-const { readdirSync, statSync } = require('fs');
+const {
+	join, resolve,
+} = require('path');
+const {
+	readdirSync, statSync,
+} = require('fs');
 const { getPrivilegeLevel } = require('./lib/users');
 const { format } = require('util');
 
@@ -196,10 +200,7 @@ module.exports = async client => {
 	});
 
 	const { handler } = await import('@discord-tickets/settings/build/handler.js');
-
-	// https://stackoverflow.com/questions/72317071/how-to-set-up-fastify-correctly-so-that-sveltekit-works-fine
-	fastify.all('/*', {}, (req, res) => handler(req.raw, res.raw, () => {
-	}));
+	require('./lib/dashboard-theme')(fastify, handler);
 
 	// start the fastify server
 	fastify.listen({
