@@ -30,6 +30,7 @@ const {
 	getAverageTimes, getAverageRating,
 } = require('../stats');
 const { pools } = require('../threads');
+const { buildChannelName } = require('../events');
 
 const { crypto } = pools;
 
@@ -197,7 +198,7 @@ module.exports = class TicketManager {
 	}
 
 	async create({
-		categoryId, interaction, topic, referencesMessageId, referencesTicketId,
+		categoryId, interaction, topic, referencesMessageId, referencesTicketId, event,
 	}) {
 		categoryId = Number(categoryId);
 		let category = await this.getCategory(categoryId);
@@ -266,6 +267,21 @@ module.exports = class TicketManager {
 			flags: MessageFlags.Ephemeral,
 		});
 
+		if (category.eventOnly && !event) {
+			return await interaction.reply({
+				embeds: [
+					new ExtendedEmbedBuilder({
+						iconURL: guild.iconURL(),
+						text: category.guild.footer,
+					})
+						.setColor(category.guild.errorColour)
+						.setTitle('🎉 Event category')
+						.setDescription('Tickets in this category can only be opened from an event panel.'),
+				],
+				flags: MessageFlags.Ephemeral,
+			});
+		}
+
 		if (category.guild.blocklist.length !== 0) {
 			const blocked = category.guild.blocklist.some(r => member.roles.cache.has(r));
 			if (blocked) return await sendError('blocked');
@@ -318,12 +334,18 @@ module.exports = class TicketManager {
 			});
 		}
 
+		const needsModal = category.questions.length >= 1 || (category.requireTopic && !topic);
+		if (event && needsModal) {
+			await this.client.keyv.set(`events/pending:${category.guildId}-${interaction.user.id}`, event, ms('15m'));
+		}
+
 		if (category.questions.length >= 1) {
 			await interaction.showModal(
 				new ModalBuilder()
 					.setCustomId(JSON.stringify({
 						action: 'questions',
 						categoryId,
+						event: event ? 1 : undefined,
 						referencesMessageId,
 						referencesTicketId,
 					}))
@@ -372,6 +394,7 @@ module.exports = class TicketManager {
 					.setCustomId(JSON.stringify({
 						action: 'topic',
 						categoryId,
+						event: event ? 1 : undefined,
 						referencesMessageId,
 						referencesTicketId,
 					}))
@@ -393,6 +416,7 @@ module.exports = class TicketManager {
 		} else {
 			await this.postQuestions({
 				categoryId,
+				event,
 				interaction,
 				referencesMessageId,
 				referencesTicketId,
@@ -402,7 +426,7 @@ module.exports = class TicketManager {
 	}
 
 	async postQuestions({
-		action, categoryId, interaction, topic, referencesMessageId, referencesTicketId,
+		action, categoryId, interaction, topic, referencesMessageId, referencesTicketId, event,
 	}) {
 		const [, category] = await Promise.all([
 			interaction.deferReply({ flags: MessageFlags.Ephemeral }),
@@ -433,10 +457,32 @@ module.exports = class TicketManager {
 		const getMessage = this.client.i18n.getLocale(category.guild.locale);
 		const creator = await guild.members.fetch(interaction.user.id);
 		const number = await this.getNextNumber(category.guild.id);
-		const channelName = category.channelName
-			.replace(/{+\s?(user)?name\s?}+/gi, creator.user.username)
-			.replace(/{+\s?(nick|display)(name)?\s?}+/gi, creator.displayName)
-			.replace(/{+\s?num(ber)?\s?}+/gi, number === 1488 ? '1487b' : number);
+
+		if (event && typeof event !== 'object') {
+			const pendingKey = `events/pending:${category.guild.id}-${interaction.user.id}`;
+			event = await this.client.keyv.get(pendingKey);
+			await this.client.keyv.delete(pendingKey);
+		}
+		const teammates = [];
+		if (event) {
+			for (const userId of event.teammates ?? []) {
+				if (userId === creator.id) continue;
+				const member = await guild.members.fetch(userId).catch(() => null);
+				if (member && !member.user.bot) teammates.push(member);
+			}
+		}
+
+		const channelName = event
+			? buildChannelName({
+				event: event.slug,
+				members: [creator, ...teammates],
+				number,
+				template: category.channelName,
+			})
+			: category.channelName
+				.replace(/{+\s?(user)?name\s?}+/gi, creator.user.username)
+				.replace(/{+\s?(nick|display)(name)?\s?}+/gi, creator.displayName)
+				.replace(/{+\s?num(ber)?\s?}+/gi, number === 1488 ? '1487b' : number);
 		const allow = ['ViewChannel', 'ReadMessageHistory', 'SendMessages', 'EmbedLinks', 'AttachFiles'];
 		const staffRoleOverwrites = [];
 		for (const roleId of category.staffRoles) {
@@ -465,11 +511,22 @@ module.exports = class TicketManager {
 					id: creator.id,
 					type: 1,
 				},
+				...teammates.map(member => ({
+					allow,
+					id: member.id,
+					type: 1,
+				})),
 				...staffRoleOverwrites,
 			],
 			rateLimitPerUser: category.ratelimit,
-			reason: `${creator.user.tag} created a ticket`,
-			topic: `${creator}${topic?.length > 0 ? ` | ${topic}` : ''}`,
+			reason: event
+				? `${creator.user.tag} signed up for ${event.title}`
+				: `${creator.user.tag} created a ticket`,
+			topic: [
+				[creator, ...teammates].map(m => m.toString()).join(' '),
+				event?.title,
+				topic?.length > 0 ? topic : null,
+			].filter(Boolean).join(' | ').slice(0, 1024),
 		});
 
 		const needsStats = /{+\s?(avgResponseTime|avgResolutionTime|avgRating)\s?}+/i.test(category.openingMessage);
@@ -520,6 +577,21 @@ module.exports = class TicketManager {
 		];
 
 		if (category.image) embeds[0].setImage(category.image);
+
+		if (event) {
+			embeds[0].addFields(
+				{
+					inline: true,
+					name: '🎉 Event',
+					value: event.title.slice(0, 1024),
+				},
+				{
+					inline: true,
+					name: `👥 Team (${teammates.length + 1})`,
+					value: [creator, ...teammates].map((m, i) => `${m}${i === 0 ? ' 👑' : ''}`).join('\n'),
+				},
+			);
+		}
 
 		if (answers) {
 			embeds.push(
@@ -590,7 +662,7 @@ module.exports = class TicketManager {
 			content: getMessage('ticket.opening_message.content', {
 				creator: interaction.user.toString(),
 				staff: pings ? pings + ',' : '',
-			}),
+			}) + (teammates.length ? `\n👥 ${teammates.map(m => m.toString()).join(' ')}` : ''),
 			embeds,
 		});
 

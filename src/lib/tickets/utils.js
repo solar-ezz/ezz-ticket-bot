@@ -27,6 +27,7 @@ module.exports = {
 			where: { id: interaction.guild.id },
 		});
 		const getMessage = client.i18n.getLocale(settings.locale);
+		settings.categories = settings.categories.filter(category => !category.eventOnly);
 		if (settings.categories.length === 0) {
 			interaction.reply({
 				components: [],

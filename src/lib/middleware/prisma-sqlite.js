@@ -4,6 +4,7 @@ const jsonFields = [
 	'staffRoles',
 	'autoTag',
 	'blocklist',
+	'eventManagerRoles',
 	'workingHours',
 	'options',
 	'pinnedMessageIds',

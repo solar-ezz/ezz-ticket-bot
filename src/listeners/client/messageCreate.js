@@ -31,6 +31,7 @@ module.exports = class extends Listener {
 	 */
 	async useGuild(settings, interaction, topic) {
 		const getMessage = this.client.i18n.getLocale(settings.locale);
+		settings.categories = settings.categories.filter(category => !category.eventOnly);
 		if (settings.categories.length === 0) {
 			interaction.update({
 				components: [],

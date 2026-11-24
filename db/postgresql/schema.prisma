@@ -77,6 +77,7 @@ model Category {
     discordCategory String     @db.VarChar(19)
     emoji           String
     enableFeedback  Boolean    @default(false)
+    eventOnly       Boolean    @default(false)
     guild           Guild      @relation(fields: [guildId], references: [id], onDelete: Cascade)
     guildId         String     @db.VarChar(19)
     id              Int        @id @default(autoincrement())
@@ -120,6 +121,7 @@ model Guild {
     closeButton   Boolean    @default(false)
     createdAt     DateTime   @default(now())
     errorColour   String     @default("Red")
+    eventManagerRoles Json @default("[]")
     feedback      Feedback[]
     footer        String?    @default("Ezz Tickets by Ezz")
     id            String     @id @db.VarChar(19)
