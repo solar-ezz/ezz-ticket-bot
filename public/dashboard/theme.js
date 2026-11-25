@@ -25,10 +25,38 @@
 		}
 	};
 
+	const TILES = [
+		['stats', 'fa-chart-line', 'Stats', g => `/settings/${g}/stats`],
+		['events', 'fa-trophy', 'Events', g => `/settings/${g}/events`],
+		['history', 'fa-clock-rotate-left', 'Ticket history', () => '/transcripts'],
+		['ratings', 'fa-star', 'Ratings', () => '/rating'],
+	];
+
+	const addTiles = () => {
+		const match = location.pathname.match(/^\/settings\/(\d{17,20})\/?$/);
+		if (!match) return;
+		const template = document.querySelector('a.link[href$="/general"]');
+		const grid = template?.parentElement;
+		if (!grid || grid.querySelector('[data-ezz-tile]')) return;
+		const anchor = [...grid.children].find(el => el.tagName === 'BUTTON') || null;
+		for (const [key, icon, label, href] of TILES) {
+			const tile = template.cloneNode(true);
+			tile.dataset.ezzTile = key;
+			tile.setAttribute('href', href(match[1]));
+			tile.setAttribute('data-sveltekit-reload', '');
+			const i = tile.querySelector('i');
+			if (i) i.className = `fas ${icon} mb-4 text-4xl`;
+			const p = tile.querySelector('p');
+			if (p) p.textContent = label;
+			grid.insertBefore(tile, anchor);
+		}
+	};
+
 	const apply = () => {
 		if (/Discord Tickets/.test(document.title)) document.title = swap(document.title);
 		walk(document.body);
 		brandHeader();
+		addTiles();
 	};
 
 	let queued = false;

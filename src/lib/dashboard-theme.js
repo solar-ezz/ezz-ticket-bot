@@ -9,7 +9,7 @@ const {
 } = require('path');
 
 const PUBLIC_DIR = join(__dirname, '../../public/dashboard');
-const THEME_VERSION = '1';
+const THEME_VERSION = '3';
 
 const PALETTE = {
 	'100 116 139': '104 110 128',
