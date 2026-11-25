@@ -52,6 +52,7 @@ if (base_dir !== cwd) {
 
 process.env.NODE_ENV ??= 'production'; // make sure NODE_ENV is set
 require('./env').load(); // load and check environment variables
+require('./lib/pending-update').finishPendingUpdate(message => console.log(colours.blueBright(message)));
 
 const fs = require('fs');
 const YAML = require('yaml');

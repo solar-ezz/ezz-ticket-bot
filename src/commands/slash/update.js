@@ -2,7 +2,10 @@ const { SlashCommand } = require('@eartharoid/dbf');
 const {
 	PermissionsBitField, EmbedBuilder, MessageFlags,
 } = require('discord.js');
-const { execSync } = require('child_process');
+const {
+	execSync, spawn,
+} = require('child_process');
+const { markPending } = require('../../lib/pending-update');
 const {
 	existsSync, mkdirSync, readFileSync, writeFileSync,
 } = require('fs');
@@ -57,15 +60,49 @@ const readVersion = () => {
 	}
 };
 
-const restart = () => {
+const hasPm2 = () => {
+	if (!process.env.pm_id) return false;
 	try {
-		execSync(`pm2 restart ${process.env.PM2_NAME || 'ezz-ticket-bot'}`, {
+		execSync('pm2 -v', {
 			stdio: 'ignore',
 			timeout: 15000,
 		});
+		return true;
 	} catch {
-		process.exit(1);
+		return false;
 	}
+};
+
+const restart = () => {
+	if (hasPm2()) {
+		try {
+			execSync(`pm2 restart ${process.env.name || process.env.PM2_NAME || 'ezz-ticket-bot'}`, {
+				stdio: 'ignore',
+				timeout: 15000,
+			});
+			return;
+		} catch {
+			process.exit(1);
+		}
+	}
+	if (process.env.UPDATE_RESTART === 'exit') process.exit(0);
+	const args = process.argv.slice(1);
+	const child = process.platform === 'win32'
+		? spawn('cmd.exe', ['/d', '/s', '/c', `"start "EzzTicketBot" ${[process.execPath, ...args].map(a => `"${a}"`).join(' ')}"`], {
+			cwd: process.cwd(),
+			detached: true,
+			env: process.env,
+			stdio: 'ignore',
+			windowsVerbatimArguments: true,
+		})
+		: spawn(process.execPath, args, {
+			cwd: process.cwd(),
+			detached: true,
+			env: process.env,
+			stdio: 'ignore',
+		});
+	child.unref();
+	setTimeout(() => process.exit(0), 300);
 };
 
 module.exports = class UpdateCommand extends SlashCommand {
@@ -141,7 +178,8 @@ module.exports = class UpdateCommand extends SlashCommand {
 				restore(saved);
 			}
 
-			run('npm install --omit=dev --no-audit --no-fund', 300000);
+			run('npm install --omit=dev --ignore-scripts --no-audit --no-fund', 300000);
+			markPending();
 
 			const newVersion = readVersion();
 			await interaction.editReply({
