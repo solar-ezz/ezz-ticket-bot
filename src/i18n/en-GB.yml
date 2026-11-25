@@ -398,9 +398,7 @@ misc:
       - ❌ You already have a ticket
       - ❌ You already have %d open tickets
   missing_roles:
-    description: >-
-      You do not have the roles required to be able to create a ticket in
-      this category.
+    description: You need at least one of the roles required to open a ticket in this category.
     title: ❌ Insufficient roles
   no_categories:
     description: |-

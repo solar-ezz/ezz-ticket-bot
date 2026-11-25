@@ -6,7 +6,10 @@ const {
 } = require('discord.js');
 const emoji = require('node-emoji');
 const ExtendedEmbedBuilder = require('./embed');
-const { getPrivilegeLevel } = require('./users');
+const {
+	getPrivilegeLevel,
+	updateStaffRoles,
+} = require('./users');
 
 const DEFAULT_ROLE_NAMES = ['event manager', 'event managers', 'events manager', 'event staff'];
 const MAX_TEAM_SIZE = 10;
@@ -63,6 +66,105 @@ const getEventSettings = async (client, guildId) => {
 	});
 	if (settings && !Array.isArray(settings.eventManagerRoles)) settings.eventManagerRoles = [];
 	return settings;
+};
+
+const EVENT_DEFAULTS = {
+	channelName: '{team}-{event}',
+	description: 'Event sign-ups',
+	emoji: '🎉',
+	memberLimit: 25,
+	name: 'Events',
+	openingMessage: 'Welcome {username}! Your team is signed up. Event staff will be with you shortly.',
+	totalLimit: 50,
+};
+
+const getEventCategory = (client, guildId) => client.prisma.category.findFirst({
+	orderBy: { id: 'asc' },
+	where: {
+		eventOnly: true,
+		guildId,
+	},
+});
+
+const asArray = value => {
+	if (Array.isArray(value)) return value.filter(Boolean).map(String);
+	if (value === undefined || value === null || value === '') return [];
+	return [String(value)];
+};
+
+const saveEventSettings = async (client, guild, input) => {
+	const existing = await getEventCategory(client, guild.id);
+	const data = {};
+	if (input.discordCategory !== undefined) data.discordCategory = String(input.discordCategory);
+	if (input.staffRoles !== undefined) data.staffRoles = asArray(input.staffRoles);
+	if (input.pingRoles !== undefined) data.pingRoles = asArray(input.pingRoles);
+	if (input.channelName) data.channelName = String(input.channelName).slice(0, 100);
+	if (input.openingMessage) data.openingMessage = String(input.openingMessage).slice(0, 4000);
+	if (input.totalLimit !== undefined && Number.isFinite(Number(input.totalLimit))) {
+		data.totalLimit = Math.min(Math.max(Math.round(Number(input.totalLimit)), 1), 500);
+	}
+
+	let category;
+	if (existing) {
+		category = await client.prisma.category.update({
+			data,
+			where: { id: existing.id },
+		});
+	} else {
+		if (!data.discordCategory) throw new Error('A Discord category is required to set up events.');
+		await client.prisma.guild.upsert({
+			create: { id: guild.id },
+			update: {},
+			where: { id: guild.id },
+		});
+		category = await client.prisma.category.create({
+			data: {
+				...EVENT_DEFAULTS,
+				staffRoles: [],
+				...data,
+				eventOnly: true,
+				guild: { connect: { id: guild.id } },
+			},
+		});
+	}
+
+	if (input.managerRoles !== undefined) {
+		await client.prisma.guild.update({
+			data: { eventManagerRoles: asArray(input.managerRoles) },
+			where: { id: guild.id },
+		});
+	}
+
+	await client.tickets.getCategory(category.id, true);
+	await updateStaffRoles(guild);
+	return category;
+};
+
+const findEventSignup = async (client, guild, categoryId, title, userIds) => {
+	const open = await client.prisma.ticket.findMany({
+		select: {
+			createdById: true,
+			id: true,
+		},
+		where: {
+			categoryId,
+			open: true,
+		},
+	});
+	const marker = ` | ${title}`;
+	for (const ticket of open) {
+		const channel = guild.channels.cache.get(ticket.id);
+		if (!channel?.topic?.includes(marker)) continue;
+		for (const userId of userIds) {
+			if (ticket.createdById === userId || channel.permissionOverwrites.cache.has(userId)) {
+				return {
+					channelId: ticket.id,
+					userId,
+				};
+			}
+		}
+	}
+	return null;
 };
 
 const canManageEvents = async (member, settings) => {
@@ -130,11 +232,10 @@ const buildPanel = ({
 			action: 'event',
 			n: slugify(name || title).slice(0, 28),
 			s: teamSize,
-			t: category.id,
 		}))
 		.setStyle(ButtonStyle.Primary)
 		.setLabel(buttonLabel || 'Join event');
-	const parsed = parseEmoji(buttonEmoji) ?? parseEmoji(category.emoji);
+	const parsed = parseEmoji(buttonEmoji) ?? parseEmoji(category?.emoji) ?? '🎉';
 	if (parsed) button.setEmoji(parsed);
 
 	return {
@@ -144,12 +245,16 @@ const buildPanel = ({
 };
 
 module.exports = {
+	EVENT_DEFAULTS,
 	MAX_TEAM_SIZE,
 	buildChannelName,
 	buildPanel,
 	canManageEvents,
+	findEventSignup,
+	getEventCategory,
 	getEventSettings,
 	reply,
+	saveEventSettings,
 	slugify,
 	teamSlug,
 };

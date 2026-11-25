@@ -291,19 +291,21 @@ module.exports = class TicketManager {
 			return await sendError('blocked');
 		}
 
-		if (category.requiredRoles.length !== 0) {
-			const missing = category.requiredRoles.some(r => !member.roles.cache.has(r));
-			if (missing) return await sendError('missing_roles');
+		const requiredRoles = (category.requiredRoles ?? []).filter(r => r !== guild.id && guild.roles.cache.has(r));
+		if (!event && requiredRoles.length !== 0) {
+			const allowed = requiredRoles.some(r => member.roles.cache.has(r));
+			if (!allowed) return await sendError('missing_roles');
 		}
 
 		const discordCategory = guild.channels.cache.get(category.discordCategory);
+		if (!discordCategory) return await sendError('unknown_category');
 		if (discordCategory.children.cache.size === 50) return await sendError('category_full');
 
 		const totalCount = await this.getTotalCount(category.id);
 		if (totalCount >= category.totalLimit) return await sendError('category_full');
 
 		const memberCount = await this.getMemberCount(category.id, interaction.user.id);
-		if (memberCount >= category.memberLimit) {
+		if (!event && memberCount >= category.memberLimit) {
 			return await interaction.reply({
 				embeds: [
 					new ExtendedEmbedBuilder({

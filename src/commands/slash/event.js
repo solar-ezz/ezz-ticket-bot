@@ -1,6 +1,7 @@
 const { SlashCommand } = require('@eartharoid/dbf');
 const {
 	ApplicationCommandOptionType,
+	ChannelType,
 	MessageFlags,
 } = require('discord.js');
 const { getPrivilegeLevel } = require('../../lib/users');
@@ -8,15 +9,31 @@ const {
 	MAX_TEAM_SIZE,
 	buildPanel,
 	canManageEvents,
+	getEventCategory,
 	getEventSettings,
 	reply,
+	saveEventSettings,
 } = require('../../lib/events');
+
+const roleOption = (name, description) => ({
+	description,
+	name,
+	options: [
+		{
+			description: 'The role',
+			name: 'role',
+			required: true,
+			type: ApplicationCommandOptionType.Role,
+		},
+	],
+	type: ApplicationCommandOptionType.Subcommand,
+});
 
 module.exports = class EventSlashCommand extends SlashCommand {
 	constructor(client, options) {
 		super(client, {
 			...options,
-			description: 'Run events: post sign-up panels and configure who can manage them',
+			description: 'Run events: post sign-up panels and configure events',
 			dmPermission: false,
 			name: 'event',
 			options: [
@@ -24,13 +41,6 @@ module.exports = class EventSlashCommand extends SlashCommand {
 					description: 'Post an event sign-up panel in this channel',
 					name: 'panel',
 					options: [
-						{
-							autocomplete: true,
-							description: 'The ticket category event tickets are created in',
-							name: 'category',
-							required: true,
-							type: ApplicationCommandOptionType.Integer,
-						},
 						{
 							description: 'Event title shown on the panel',
 							maxLength: 100,
@@ -89,57 +99,39 @@ module.exports = class EventSlashCommand extends SlashCommand {
 					type: ApplicationCommandOptionType.Subcommand,
 				},
 				{
-					description: 'Mark a ticket category as event-only (hidden from /new and normal panels)',
-					name: 'category',
+					description: 'Set where event tickets are created and which staff can see them',
+					name: 'setup',
 					options: [
 						{
-							autocomplete: true,
-							description: 'The ticket category',
+							channelTypes: [ChannelType.GuildCategory],
+							description: 'Discord category that event tickets are created in',
 							name: 'category',
 							required: true,
-							type: ApplicationCommandOptionType.Integer,
+							type: ApplicationCommandOptionType.Channel,
 						},
 						{
-							description: 'Only allow tickets in this category through event panels',
-							name: 'event-only',
-							required: true,
-							type: ApplicationCommandOptionType.Boolean,
+							description: 'Staff role that can see event tickets',
+							name: 'staff-role',
+							required: false,
+							type: ApplicationCommandOptionType.Role,
+						},
+						{
+							description: 'Role to ping when a team signs up',
+							name: 'ping-role',
+							required: false,
+							type: ApplicationCommandOptionType.Role,
 						},
 					],
 					type: ApplicationCommandOptionType.Subcommand,
 				},
 				{
-					description: 'Manage which roles can run events',
+					description: 'Manage which roles can post event panels',
 					name: 'roles',
 					options: [
+						roleOption('add', 'Allow a role to post event panels'),
+						roleOption('remove', 'Stop a role from posting event panels'),
 						{
-							description: 'Allow a role to post event panels',
-							name: 'add',
-							options: [
-								{
-									description: 'The role',
-									name: 'role',
-									required: true,
-									type: ApplicationCommandOptionType.Role,
-								},
-							],
-							type: ApplicationCommandOptionType.Subcommand,
-						},
-						{
-							description: 'Stop a role from posting event panels',
-							name: 'remove',
-							options: [
-								{
-									description: 'The role',
-									name: 'role',
-									required: true,
-									type: ApplicationCommandOptionType.Role,
-								},
-							],
-							type: ApplicationCommandOptionType.Subcommand,
-						},
-						{
-							description: 'Show the event manager roles and event categories',
+							description: 'Show the event setup and event manager roles',
 							name: 'list',
 							type: ApplicationCommandOptionType.Subcommand,
 						},
@@ -151,8 +143,7 @@ module.exports = class EventSlashCommand extends SlashCommand {
 	}
 
 	async run(interaction) {
-		const client = this.client;
-		const settings = await getEventSettings(client, interaction.guild.id);
+		const settings = await getEventSettings(this.client, interaction.guild.id);
 		if (!settings) {
 			return await reply(interaction, null, {
 				colour: 'Red',
@@ -164,7 +155,8 @@ module.exports = class EventSlashCommand extends SlashCommand {
 		const group = interaction.options.getSubcommandGroup(false);
 		const sub = interaction.options.getSubcommand();
 
-		if (group === null && sub === 'panel') return await this.panel(interaction, settings);
+		if (sub === 'panel') return await this.panel(interaction, settings);
+		if (group === 'roles' && sub === 'list') return await this.list(interaction, settings);
 
 		if (await getPrivilegeLevel(interaction.member) < 2) {
 			return await reply(interaction, settings, {
@@ -174,8 +166,12 @@ module.exports = class EventSlashCommand extends SlashCommand {
 			});
 		}
 
+		if (sub === 'setup') return await this.setup(interaction, settings);
 		if (group === 'roles') return await this.roles(interaction, settings, sub);
-		if (sub === 'category') return await this.category(interaction, settings);
+	}
+
+	dashboardUrl(guildId) {
+		return `${process.env.HTTP_EXTERNAL}/settings/${guildId}/events`;
 	}
 
 	async panel(interaction, settings) {
@@ -188,18 +184,12 @@ module.exports = class EventSlashCommand extends SlashCommand {
 			});
 		}
 
-		const categoryId = interaction.options.getInteger('category', true);
-		const category = await client.prisma.category.findFirst({
-			where: {
-				guildId: interaction.guild.id,
-				id: categoryId,
-			},
-		});
-		if (!category) {
+		const category = await getEventCategory(client, interaction.guild.id);
+		if (!category || !interaction.guild.channels.cache.has(category.discordCategory)) {
 			return await reply(interaction, settings, {
 				colour: settings.errorColour,
-				description: 'That category does not exist. Create one in the dashboard first.',
-				title: '❌ Unknown category',
+				description: `Events aren't set up yet. An admin needs to run \`/event setup\` or use the [Events page](${this.dashboardUrl(interaction.guild.id)}).`,
+				title: '❌ Events not set up',
 			});
 		}
 
@@ -239,35 +229,52 @@ module.exports = class EventSlashCommand extends SlashCommand {
 			return await interaction.editReply({ content: '❌ I could not send the panel here. Check that I can view this channel, send messages and embed links.' });
 		}
 
-		const tip = category.eventOnly ? '' : `\nTip: run \`/event category\` to make **${category.name}** event-only so it stays out of \`/new\`.`;
-		await interaction.editReply({ content: `✅ Event panel posted. Tickets will be created in **${category.name}**.${tip}` });
+		await interaction.editReply({ content: '✅ Event panel posted. Anyone can sign up with the button.' });
+	}
+
+	async setup(interaction, settings) {
+		const discordCategory = interaction.options.getChannel('category', true);
+		const staffRole = interaction.options.getRole('staff-role', false);
+		const pingRole = interaction.options.getRole('ping-role', false);
+		const input = { discordCategory: discordCategory.id };
+		if (staffRole) input.staffRoles = [staffRole.id];
+		if (pingRole) input.pingRoles = [pingRole.id];
+
+		await saveEventSettings(this.client, interaction.guild, input);
+
+		return await reply(interaction, settings, {
+			colour: settings.successColour,
+			description: [
+				`Event tickets will be created in **${discordCategory.name}**.`,
+				staffRole ? `${staffRole} can see event tickets.` : null,
+				pingRole ? `${pingRole} is pinged when a team signs up.` : null,
+				'',
+				`Post a panel with \`/event panel\`. More options (opening message, channel names, questions) are on the [Events page](${this.dashboardUrl(interaction.guild.id)}).`,
+			].filter(line => line !== null).join('\n'),
+			title: '✅ Events set up',
+		});
+	}
+
+	async list(interaction, settings) {
+		const category = await getEventCategory(this.client, interaction.guild.id);
+		const roles = settings.eventManagerRoles;
+		return await reply(interaction, settings, {
+			description: [
+				'**Event tickets category**',
+				category ? `<#${category.discordCategory}>` : 'Not set up. Run `/event setup`.',
+				'',
+				'**Event staff**',
+				category?.staffRoles?.length ? category.staffRoles.map(r => `<@&${r}>`).join(' ') : 'None',
+				'',
+				'**Can post panels**',
+				roles.length ? roles.map(r => `<@&${r}>`).join(' ') : 'Admins and any role named "Event Manager"',
+			].join('\n'),
+			title: '🎉 Event settings',
+		});
 	}
 
 	async roles(interaction, settings, sub) {
-		const client = this.client;
 		let roles = [...settings.eventManagerRoles];
-
-		if (sub === 'list') {
-			const categories = await client.prisma.category.findMany({
-				select: {
-					eventOnly: true,
-					name: true,
-				},
-				where: { guildId: interaction.guild.id },
-			});
-			const eventCategories = categories.filter(c => c.eventOnly).map(c => `• ${c.name}`);
-			return await reply(interaction, settings, {
-				description: [
-					'**Event manager roles**',
-					roles.length ? roles.map(r => `• <@&${r}>`).join('\n') : '• None set (admins and any role named "Event Manager" can still run events)',
-					'',
-					'**Event-only categories**',
-					eventCategories.length ? eventCategories.join('\n') : '• None',
-				].join('\n'),
-				title: '🎉 Event settings',
-			});
-		}
-
 		const role = interaction.options.getRole('role', true);
 		if (sub === 'add') {
 			if (!roles.includes(role.id)) roles.push(role.id);
@@ -275,7 +282,7 @@ module.exports = class EventSlashCommand extends SlashCommand {
 			roles = roles.filter(r => r !== role.id);
 		}
 
-		await client.prisma.guild.update({
+		await this.client.prisma.guild.update({
 			data: { eventManagerRoles: roles },
 			where: { id: interaction.guild.id },
 		});
@@ -286,37 +293,6 @@ module.exports = class EventSlashCommand extends SlashCommand {
 				? `${role} can now post event panels with \`/event panel\`.`
 				: `${role} can no longer post event panels.`,
 			title: '✅ Event roles updated',
-		});
-	}
-
-	async category(interaction, settings) {
-		const client = this.client;
-		const categoryId = interaction.options.getInteger('category', true);
-		const eventOnly = interaction.options.getBoolean('event-only', true);
-		const category = await client.prisma.category.findFirst({
-			where: {
-				guildId: interaction.guild.id,
-				id: categoryId,
-			},
-		});
-		if (!category) {
-			return await reply(interaction, settings, {
-				colour: settings.errorColour,
-				description: 'That category does not exist.',
-				title: '❌ Unknown category',
-			});
-		}
-		await client.prisma.category.update({
-			data: { eventOnly },
-			where: { id: category.id },
-		});
-		await client.tickets.getCategory(category.id, true);
-		return await reply(interaction, settings, {
-			colour: settings.successColour,
-			description: eventOnly
-				? `**${category.name}** is now event-only. Members can only open tickets in it from event panels.`
-				: `**${category.name}** is a normal ticket category again.`,
-			title: '✅ Category updated',
 		});
 	}
 };

@@ -10,6 +10,8 @@ const {
 const ExtendedEmbedBuilder = require('../lib/embed');
 const {
 	MAX_TEAM_SIZE,
+	findEventSignup,
+	getEventCategory,
 	reply,
 } = require('../lib/events');
 const ms = require('ms');
@@ -24,7 +26,6 @@ module.exports = class EventButton extends Button {
 
 	async run(id, interaction) {
 		const client = this.client;
-		const categoryId = Number(id.t);
 		const teamSize = Math.min(Math.max(Number(id.s) || 1, 1), MAX_TEAM_SIZE);
 		const title = interaction.message?.embeds?.[0]?.title || id.n || 'Event';
 		const event = {
@@ -32,15 +33,26 @@ module.exports = class EventButton extends Button {
 			title,
 		};
 
-		const category = await client.tickets.getCategory(categoryId);
-		if (!category || category.guildId !== interaction.guild.id) {
+		const eventCategory = await getEventCategory(client, interaction.guild.id);
+		const category = eventCategory ? await client.tickets.getCategory(eventCategory.id) : null;
+		if (!category) {
 			return await reply(interaction, null, {
 				colour: 'Red',
-				description: 'This event is no longer accepting sign-ups.',
-				title: '❌ Event closed',
+				description: 'Event sign-ups are not set up on this server yet. Ask an admin to run `/event setup`.',
+				title: '❌ Events not set up',
 			});
 		}
+		const categoryId = category.id;
 		const settings = category.guild;
+
+		const existing = await findEventSignup(client, interaction.guild, categoryId, title, [interaction.user.id]);
+		if (existing) {
+			return await reply(interaction, settings, {
+				colour: settings.errorColour,
+				description: `You're already signed up for **${title}** in <#${existing.channelId}>.`,
+				title: '❌ Already signed up',
+			});
+		}
 
 		if (teamSize <= 1) {
 			return await client.tickets.create({
@@ -105,7 +117,7 @@ module.exports = class EventButton extends Button {
 			try {
 				let teammates = [];
 				if (i.componentType === ComponentType.UserSelect) {
-					const check = await this.validateTeam(i, category, settings);
+					const check = await this.validateTeam(i, category, settings, title);
 					if (!check.ok) {
 						return await reply(i, settings, {
 							colour: settings.errorColour,
@@ -135,7 +147,7 @@ module.exports = class EventButton extends Button {
 		});
 	}
 
-	async validateTeam(interaction, category, settings) {
+	async validateTeam(interaction, category, settings, title) {
 		const client = this.client;
 		const guild = interaction.guild;
 		const ids = [...new Set(interaction.values)];
@@ -171,28 +183,12 @@ module.exports = class EventButton extends Button {
 			members.push(member);
 		}
 
-		const open = await client.prisma.ticket.findMany({
-			select: {
-				createdById: true,
-				id: true,
-			},
-			where: {
-				categoryId: category.id,
-				open: true,
-			},
-		});
-		for (const member of members) {
-			const busy = open.find(t => {
-				if (t.createdById === member.id) return true;
-				const channel = guild.channels.cache.get(t.id);
-				return channel?.permissionOverwrites?.cache?.has(member.id);
-			});
-			if (busy) {
-				return {
-					message: `${member} is already signed up for this event in <#${busy.id}>.`,
-					ok: false,
-				};
-			}
+		const busy = await findEventSignup(client, guild, category.id, title, members.map(m => m.id));
+		if (busy) {
+			return {
+				message: `<@${busy.userId}> is already signed up for this event in <#${busy.channelId}>.`,
+				ok: false,
+			};
 		}
 
 		return {
